@@ -6,8 +6,8 @@ import * as userRepository from '../repositories/userRepository';
 export interface CreateEventInput {
   title: string;
   description: string;
-  start_date: string;
-  end_date: string;
+  start_datetime: string;
+  end_datetime: string;
   organizer_id: string;
   venue_id: string;
   status?: EventStatus;
@@ -16,8 +16,8 @@ export interface CreateEventInput {
 export interface UpdateEventInput {
   title?: string;
   description?: string;
-  start_date?: string;
-  end_date?: string;
+  start_datetime?: string;
+  end_datetime?: string;
   venue_id?: string;
   status?: EventStatus;
 }
@@ -36,15 +36,15 @@ export async function createEvent(input: CreateEventInput): Promise<Event> {
   }
 
   // Validate dates
-  const startDate = new Date(input.start_date);
-  const endDate = new Date(input.end_date);
+  const startDate = new Date(input.start_datetime);
+  const endDate = new Date(input.end_datetime);
 
   if (isNaN(startDate.getTime())) {
-    throw new Error('Invalid start date format');
+    throw new Error('Invalid start datetime format');
   }
 
   if (isNaN(endDate.getTime())) {
-    throw new Error('Invalid end date format');
+    throw new Error('Invalid end datetime format');
   }
 
   if (endDate <= startDate) {
@@ -74,8 +74,8 @@ export async function createEvent(input: CreateEventInput): Promise<Event> {
   // Check venue availability
   const isAvailable = await venueRepository.isVenueAvailable(
     input.venue_id,
-    input.start_date,
-    input.end_date
+    input.start_datetime,
+    input.end_datetime
   );
 
   if (!isAvailable) {
@@ -191,16 +191,16 @@ export async function updateEvent(
   }
 
   // Validate dates if provided
-  if (input.start_date !== undefined || input.end_date !== undefined) {
-    const startDate = new Date(input.start_date || existingEvent.start_date);
-    const endDate = new Date(input.end_date || existingEvent.end_date);
+  if (input.start_datetime !== undefined || input.end_datetime !== undefined) {
+    const startDate = new Date(input.start_datetime || existingEvent.start_datetime);
+    const endDate = new Date(input.end_datetime || existingEvent.end_datetime);
 
-    if (input.start_date && isNaN(startDate.getTime())) {
-      throw new Error('Invalid start date format');
+    if (input.start_datetime && isNaN(startDate.getTime())) {
+      throw new Error('Invalid start datetime format');
     }
 
-    if (input.end_date && isNaN(endDate.getTime())) {
-      throw new Error('Invalid end date format');
+    if (input.end_datetime && isNaN(endDate.getTime())) {
+      throw new Error('Invalid end datetime format');
     }
 
     if (endDate <= startDate) {
@@ -222,13 +222,13 @@ export async function updateEvent(
 
     // Check venue availability if venue is being changed
     if (input.venue_id !== existingEvent.venue_id) {
-      const startDate = input.start_date || existingEvent.start_date;
-      const endDate = input.end_date || existingEvent.end_date;
+      const startDatetime = input.start_datetime || existingEvent.start_datetime;
+      const endDatetime = input.end_datetime || existingEvent.end_datetime;
 
       const isAvailable = await venueRepository.isVenueAvailable(
         input.venue_id,
-        startDate,
-        endDate
+        startDatetime,
+        endDatetime
       );
 
       if (!isAvailable) {

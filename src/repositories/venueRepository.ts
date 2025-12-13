@@ -110,23 +110,23 @@ export async function getVenuesByType(type: VenueType): Promise<Venue[]> {
 /**
  * Get available venues (venues not booked for a given date range)
  */
-export async function getAvailableVenues(startDate: string, endDate: string): Promise<Venue[]> {
+export async function getAvailableVenues(startDatetime: string, endDatetime: string): Promise<Venue[]> {
     const db = await getDatabase();
     
-    // Get venues that don't have any events in the given date range
+    // Get venues that don't have any events in the given datetime range
     const result = db.exec(
         `SELECT v.* FROM venues v
          WHERE v.id NOT IN (
              SELECT e.venue_id FROM events e
              WHERE e.status != 'CANCELLED'
              AND (
-                 (e.start_date <= ? AND e.end_date >= ?)
-                 OR (e.start_date <= ? AND e.end_date >= ?)
-                 OR (e.start_date >= ? AND e.end_date <= ?)
+                 (e.start_datetime <= ? AND e.end_datetime >= ?)
+                 OR (e.start_datetime <= ? AND e.end_datetime >= ?)
+                 OR (e.start_datetime >= ? AND e.end_datetime <= ?)
              )
          )
          ORDER BY v.type, v.location`,
-        [startDate, startDate, endDate, endDate, startDate, endDate]
+        [startDatetime, startDatetime, endDatetime, endDatetime, startDatetime, endDatetime]
     );
 
     if (result.length === 0 || !result[0] || !result[0].values) {
@@ -219,9 +219,9 @@ export async function deleteVenue(id: string): Promise<boolean> {
 }
 
 /**
- * Check if venue is available (not booked for the given date range)
+ * Check if venue is available (not booked for the given datetime range)
  */
-export async function isVenueAvailable(venueId: string, startDate: string, endDate: string): Promise<boolean> {
+export async function isVenueAvailable(venueId: string, startDatetime: string, endDatetime: string): Promise<boolean> {
     const db = await getDatabase();
     
     const result = db.exec(
@@ -229,11 +229,11 @@ export async function isVenueAvailable(venueId: string, startDate: string, endDa
          WHERE venue_id = ? 
          AND status != 'CANCELLED'
          AND (
-             (start_date <= ? AND end_date >= ?)
-             OR (start_date <= ? AND end_date >= ?)
-             OR (start_date >= ? AND end_date <= ?)
+             (start_datetime <= ? AND end_datetime >= ?)
+             OR (start_datetime <= ? AND end_datetime >= ?)
+             OR (start_datetime >= ? AND end_datetime <= ?)
          )`,
-        [venueId, startDate, startDate, endDate, endDate, startDate, endDate]
+        [venueId, startDatetime, startDatetime, endDatetime, endDatetime, startDatetime, endDatetime]
     );
 
     if (!result[0] || !result[0].values || result[0].values.length === 0) {

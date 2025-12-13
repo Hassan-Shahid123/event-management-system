@@ -26,7 +26,17 @@ export type EventStatus = 'UPCOMING' | 'INPROGRESS' | 'COMPLETED' | 'CANCELLED';
 /**
  * VenueType represents the type of venue available for events.
  */
-export type VenueType = 'INDOOR' | 'OPENAIR';
+export type VenueType = 
+    | 'LAB'
+    | 'EXAM_HALL'
+    | 'LECTURE_HALL'
+    | 'SMART_CLASSROOM'
+    | 'CLASSROOM'
+    | 'MEETING_HALL'
+    | 'OPENAIR'
+    | 'SEMINAR'
+    | 'AUDITORIUM'
+    | 'CAFE';
 
 /**
  * RegistrationStatus represents the status of an event registration.
@@ -51,12 +61,15 @@ export interface User {
 
 /**
  * Venue represents a physical location (maps to venues table in SQLite).
+ * 
+ * Note: capacity is required for all venue types except OPENAIR (unlimited capacity).
+ * Validation should be enforced at the service layer.
  */
 export interface Venue {
     id: string;
     location: string;
     type: VenueType;
-    capacity?: number;  // null/undefined for OPENAIR (unlimited capacity)
+    capacity?: number;  // Required for all types except OPENAIR (unlimited)
 }
 
 /**
@@ -66,8 +79,8 @@ export interface Event {
     id: string;
     title: string;
     description: string;
-    start_date: string;  // ISO 8601 format
-    end_date: string;    // ISO 8601 format
+    start_datetime: string;  // ISO 8601 format (includes date and time)
+    end_datetime: string;    // ISO 8601 format (includes date and time)
     venue_id: string;
     organizer_id: string;
     status: EventStatus;

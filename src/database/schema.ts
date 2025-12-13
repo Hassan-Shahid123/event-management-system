@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS venues (
     id TEXT PRIMARY KEY,
     location TEXT NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('INDOOR', 'OPENAIR')),
+    type TEXT NOT NULL CHECK(type IN ('LAB', 'EXAM_HALL', 'LECTURE_HALL', 'SMART_CLASSROOM', 'CLASSROOM', 'MEETING_HALL', 'OPENAIR', 'SEMINAR', 'AUDITORIUM', 'CAFE')),
     capacity INTEGER  -- NULL for OPENAIR (unlimited capacity)
 );
 
@@ -28,8 +28,8 @@ CREATE TABLE IF NOT EXISTS events (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
-    start_date TEXT NOT NULL,
-    end_date TEXT NOT NULL,
+    start_datetime TEXT NOT NULL,
+    end_datetime TEXT NOT NULL,
     venue_id TEXT NOT NULL,
     organizer_id TEXT NOT NULL,
     status TEXT NOT NULL CHECK(status IN ('UPCOMING', 'INPROGRESS', 'COMPLETED', 'CANCELLED')) DEFAULT 'UPCOMING',

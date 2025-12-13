@@ -33,9 +33,9 @@ export async function createVenue(input: CreateVenueInput): Promise<Venue> {
       throw new Error('Open air venues cannot have a capacity limit');
     }
   } else {
-    // Indoor venues must have a capacity
+    // All other venue types must have a capacity
     if (input.capacity === undefined || input.capacity <= 0) {
-      throw new Error('Indoor venues must have a positive capacity');
+      throw new Error('This venue type must have a positive capacity');
     }
   }
 
@@ -68,22 +68,22 @@ export async function getVenuesByType(type: VenueType): Promise<Venue[]> {
 }
 
 /**
- * Get available venues for a date range
+ * Get available venues for a datetime range
  */
-export async function getAvailableVenues(startDate: string, endDate: string): Promise<Venue[]> {
-  // Validate dates
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+export async function getAvailableVenues(startDatetime: string, endDatetime: string): Promise<Venue[]> {
+  // Validate datetimes
+  const start = new Date(startDatetime);
+  const end = new Date(endDatetime);
 
   if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-    throw new Error('Invalid date format');
+    throw new Error('Invalid datetime format');
   }
 
   if (end <= start) {
-    throw new Error('End date must be after start date');
+    throw new Error('End datetime must be after start datetime');
   }
 
-  return venueRepository.getAvailableVenues(startDate, endDate);
+  return venueRepository.getAvailableVenues(startDatetime, endDatetime);
 }
 
 /**
@@ -116,10 +116,10 @@ export async function updateVenue(venueId: string, input: UpdateVenueInput): Pro
         throw new Error('Open air venues cannot have a capacity limit');
       }
     } else {
-      // If changing to or already indoor, capacity must be positive
+      // All other venue types must have a positive capacity
       const finalCapacity = input.capacity !== undefined ? input.capacity : existingVenue.capacity;
       if (finalCapacity === undefined || finalCapacity === null || finalCapacity <= 0) {
-        throw new Error('Indoor venues must have a positive capacity');
+        throw new Error('This venue type must have a positive capacity');
       }
     }
   }
@@ -143,12 +143,12 @@ export async function deleteVenue(venueId: string): Promise<void> {
 }
 
 /**
- * Check if venue is available for a date range
+ * Check if venue is available for a datetime range
  */
 export async function isVenueAvailable(
   venueId: string,
-  startDate: string,
-  endDate: string
+  startDatetime: string,
+  endDatetime: string
 ): Promise<boolean> {
   // Validate venue exists
   const venue = await venueRepository.getVenueById(venueId);
@@ -156,19 +156,19 @@ export async function isVenueAvailable(
     throw new Error('Venue not found');
   }
 
-  // Validate dates
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  // Validate datetimes
+  const start = new Date(startDatetime);
+  const end = new Date(endDatetime);
 
   if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-    throw new Error('Invalid date format');
+    throw new Error('Invalid datetime format');
   }
 
   if (end <= start) {
-    throw new Error('End date must be after start date');
+    throw new Error('End datetime must be after start datetime');
   }
 
-  return venueRepository.isVenueAvailable(venueId, startDate, endDate);
+  return venueRepository.isVenueAvailable(venueId, startDatetime, endDatetime);
 }
 
 /**
@@ -189,7 +189,7 @@ export function hasCapacityLimit(venue: Venue): boolean {
  * Validate venue type
  */
 function isValidVenueType(type: string): type is VenueType {
-  return ['OPENAIR', 'INDOOR'].includes(type);
+  return ['LAB', 'EXAM_HALL', 'LECTURE_HALL', 'SMART_CLASSROOM', 'CLASSROOM', 'MEETING_HALL', 'OPENAIR', 'SEMINAR', 'AUDITORIUM', 'CAFE'].includes(type);
 }
 
 /**
@@ -197,14 +197,29 @@ function isValidVenueType(type: string): type is VenueType {
  */
 export async function getVenueStats(): Promise<{
   total: number;
-  indoor: number;
-  openair: number;
+  byType: Record<VenueType, number>;
 }> {
   const allVenues = await venueRepository.getAllVenues();
   
+  const byType: Record<VenueType, number> = {
+    LAB: 0,
+    EXAM_HALL: 0,
+    LECTURE_HALL: 0,
+    SMART_CLASSROOM: 0,
+    CLASSROOM: 0,
+    MEETING_HALL: 0,
+    OPENAIR: 0,
+    SEMINAR: 0,
+    AUDITORIUM: 0,
+    CAFE: 0,
+  };
+
+  for (const venue of allVenues) {
+    byType[venue.type]++;
+  }
+
   return {
     total: allVenues.length,
-    indoor: allVenues.filter(v => v.type === 'INDOOR').length,
-    openair: allVenues.filter(v => v.type === 'OPENAIR').length,
+    byType,
   };
 }

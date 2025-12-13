@@ -9,7 +9,7 @@ async function testDatabase() {
     
     try {
         const db = await getDatabase();
-        console.log('✓ Database connection established');
+        console.log('Database connection established _/');
         
         // Test that tables exist
         const result = db.exec(`
@@ -26,9 +26,9 @@ async function testDatabase() {
         closeDatabase();
         console.log('✓ Database connection closed');
         
-        console.log('\n✅ All tests passed!');
+        console.log('\n All tests passed! Connection established && tables created');
     } catch (error) {
-        console.error('❌ Test failed:', error);
+        console.error('Test failed:', error);
         process.exit(1);
     }
 }

@@ -16,8 +16,8 @@ function mapRowToEvent(row: any[]): Event {
         id: row[0] as string,
         title: row[1] as string,
         description: row[2] as string,
-        start_date: row[3] as string,
-        end_date: row[4] as string,
+        start_datetime: row[3] as string,
+        end_datetime: row[4] as string,
         venue_id: row[5] as string,
         organizer_id: row[6] as string,
         status: row[7] as EventStatus,
@@ -31,8 +31,8 @@ function mapRowToEvent(row: any[]): Event {
 export async function createEvent(eventData: {
     title: string;
     description: string;
-    start_date: string;
-    end_date: string;
+    start_datetime: string;
+    end_datetime: string;
     venue_id: string;
     organizer_id: string;
     status?: EventStatus;
@@ -43,9 +43,9 @@ export async function createEvent(eventData: {
     const status: EventStatus = eventData.status || 'UPCOMING';
 
     db.run(
-        `INSERT INTO events (id, title, description, start_date, end_date, venue_id, organizer_id, status, created_at)
+        `INSERT INTO events (id, title, description, start_datetime, end_datetime, venue_id, organizer_id, status, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, eventData.title, eventData.description, eventData.start_date, eventData.end_date,
+        [id, eventData.title, eventData.description, eventData.start_datetime, eventData.end_datetime,
          eventData.venue_id, eventData.organizer_id, status, created_at]
     );
 
@@ -55,8 +55,8 @@ export async function createEvent(eventData: {
         id,
         title: eventData.title,
         description: eventData.description,
-        start_date: eventData.start_date,
-        end_date: eventData.end_date,
+        start_datetime: eventData.start_datetime,
+        end_datetime: eventData.end_datetime,
         venue_id: eventData.venue_id,
         organizer_id: eventData.organizer_id,
         status,
@@ -91,7 +91,7 @@ export async function getEventById(id: string): Promise<Event | null> {
 export async function getAllEvents(): Promise<Event[]> {
     const db = await getDatabase();
     
-    const result = db.exec(`SELECT * FROM events ORDER BY start_date DESC`);
+    const result = db.exec(`SELECT * FROM events ORDER BY start_datetime DESC`);
 
     if (result.length === 0 || !result[0] || !result[0].values) {
         return [];
@@ -107,7 +107,7 @@ export async function getEventsByOrganizer(organizerId: string): Promise<Event[]
     const db = await getDatabase();
     
     const result = db.exec(
-        `SELECT * FROM events WHERE organizer_id = ? ORDER BY start_date DESC`,
+        `SELECT * FROM events WHERE organizer_id = ? ORDER BY start_datetime DESC`,
         [organizerId]
     );
 
@@ -125,7 +125,7 @@ export async function getEventsByStatus(status: EventStatus): Promise<Event[]> {
     const db = await getDatabase();
     
     const result = db.exec(
-        `SELECT * FROM events WHERE status = ? ORDER BY start_date DESC`,
+        `SELECT * FROM events WHERE status = ? ORDER BY start_datetime DESC`,
         [status]
     );
 
@@ -143,7 +143,7 @@ export async function getEventsByVenue(venueId: string): Promise<Event[]> {
     const db = await getDatabase();
     
     const result = db.exec(
-        `SELECT * FROM events WHERE venue_id = ? ORDER BY start_date DESC`,
+        `SELECT * FROM events WHERE venue_id = ? ORDER BY start_datetime DESC`,
         [venueId]
     );
 
@@ -163,8 +163,8 @@ export async function getUpcomingEvents(): Promise<Event[]> {
     
     const result = db.exec(
         `SELECT * FROM events 
-         WHERE start_date > ?
-         ORDER BY start_date ASC`,
+         WHERE start_datetime > ?
+         ORDER BY start_datetime ASC`,
         [now]
     );
 
@@ -180,7 +180,7 @@ export async function getUpcomingEvents(): Promise<Event[]> {
  */
 export async function updateEvent(
     id: string,
-    updates: Partial<Pick<Event, 'title' | 'description' | 'start_date' | 'end_date' | 'venue_id' | 'status'>>
+    updates: Partial<Pick<Event, 'title' | 'description' | 'start_datetime' | 'end_datetime' | 'venue_id' | 'status'>>
 ): Promise<Event> {
     const db = await getDatabase();
     
@@ -195,13 +195,13 @@ export async function updateEvent(
         fields.push('description = ?');
         values.push(updates.description);
     }
-    if (updates.start_date !== undefined) {
-        fields.push('start_date = ?');
-        values.push(updates.start_date);
+    if (updates.start_datetime !== undefined) {
+        fields.push('start_datetime = ?');
+        values.push(updates.start_datetime);
     }
-    if (updates.end_date !== undefined) {
-        fields.push('end_date = ?');
-        values.push(updates.end_date);
+    if (updates.end_datetime !== undefined) {
+        fields.push('end_datetime = ?');
+        values.push(updates.end_datetime);
     }
     if (updates.venue_id !== undefined) {
         fields.push('venue_id = ?');
@@ -264,7 +264,7 @@ export async function searchEventsByTitle(searchTerm: string): Promise<Event[]> 
     const result = db.exec(
         `SELECT * FROM events 
          WHERE title LIKE ? 
-         ORDER BY start_date DESC`,
+         ORDER BY start_datetime DESC`,
         [`%${searchTerm}%`]
     );
 

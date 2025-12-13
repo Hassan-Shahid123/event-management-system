@@ -34,7 +34,7 @@ export async function registerForEvent(
   }
 
   // Check if event is in the future
-  const eventStartDate = new Date(event.start_date);
+  const eventStartDate = new Date(event.start_datetime);
   if (eventStartDate < new Date()) {
     throw new Error('Cannot register for past events');
   }
