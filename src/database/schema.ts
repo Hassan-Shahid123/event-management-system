@@ -50,11 +50,35 @@ CREATE TABLE IF NOT EXISTS event_registrations (
     UNIQUE(event_id, user_id)  -- A user can only register once per event
 );
 
+-- Notifications table
+CREATE TABLE IF NOT EXISTS notifications (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    event_id TEXT,
+    type TEXT NOT NULL CHECK(type IN (
+        'REGISTRATION_CONFIRMED',
+        'REGISTRATION_WAITLISTED',
+        'PROMOTED_FROM_WAITLIST',
+        'EVENT_CANCELLED',
+        'EVENT_UPDATED',
+        'EVENT_REMINDER',
+        'UNREGISTERED'
+    )),
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    is_read INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+);
+
 -- Indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_events_organizer ON events(organizer_id);
 CREATE INDEX IF NOT EXISTS idx_events_venue ON events(venue_id);
 CREATE INDEX IF NOT EXISTS idx_events_status ON events(status);
 CREATE INDEX IF NOT EXISTS idx_registrations_event ON event_registrations(event_id);
 CREATE INDEX IF NOT EXISTS idx_registrations_user ON event_registrations(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_event ON notifications(event_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 `;

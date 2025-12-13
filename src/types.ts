@@ -43,6 +43,18 @@ export type VenueType =
  */
 export type RegistrationStatus = 'CONFIRMED' | 'WAITLISTED';
 
+/**
+ * NotificationType represents the type of notification.
+ */
+export type NotificationType = 
+    | 'REGISTRATION_CONFIRMED'
+    | 'REGISTRATION_WAITLISTED'
+    | 'PROMOTED_FROM_WAITLIST'
+    | 'EVENT_CANCELLED'
+    | 'EVENT_UPDATED'
+    | 'EVENT_REMINDER'
+    | 'UNREGISTERED';
+
 // ============================================================================
 // DATABASE MODEL INTERFACES
 // ============================================================================
@@ -109,4 +121,19 @@ export interface EventRegistration {
 export type Result<T, E = string> = 
     | { success: true; value: T }
     | { success: false; error: E };
+
+/**
+ * Notification represents a user notification
+ * (maps to notifications table in SQLite).
+ */
+export interface Notification {
+    id: string;
+    user_id: string;
+    event_id?: string;
+    type: NotificationType;
+    title: string;
+    message: string;
+    is_read: boolean;
+    created_at: string;
+}
 

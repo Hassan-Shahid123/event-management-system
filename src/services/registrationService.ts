@@ -3,9 +3,12 @@ import * as registrationRepository from '../repositories/registrationRepository'
 import * as eventRepository from '../repositories/eventRepository';
 import * as userRepository from '../repositories/userRepository';
 import * as venueRepository from '../repositories/venueRepository';
+import * as notificationService from './notificationService';
+import { getDatabase, saveDatabase } from '../database';
 
 /**
  * Register a user for an event
+ * Uses database transaction to prevent race conditions (double booking)
  */
 export async function registerForEvent(
   eventId: string,
@@ -51,26 +54,64 @@ export async function registerForEvent(
     throw new Error('Venue not found');
   }
 
-  // Determine registration status based on capacity
+  // Use transaction to prevent race conditions
+  const db = await getDatabase();
+  
   let registrationStatus: RegistrationStatus;
+  let registration: EventRegistration;
 
-  if (venue.type === 'OPENAIR') {
-    // Open air venues have unlimited capacity
-    registrationStatus = 'CONFIRMED';
-  } else {
-    // Check current confirmed registrations
-    const confirmedCount = await registrationRepository.getRegistrationCount(eventId, 'CONFIRMED');
-    const venueCapacity = venue.capacity || 0;
+  try {
+    // Begin transaction
+    db.run('BEGIN IMMEDIATE TRANSACTION');
 
-    if (confirmedCount < venueCapacity) {
+    // Re-check registration count within transaction (prevents race condition)
+    if (venue.type === 'OPENAIR') {
+      // Open air venues have unlimited capacity
       registrationStatus = 'CONFIRMED';
     } else {
-      registrationStatus = 'WAITLISTED';
+      // Check current confirmed registrations (atomic read within transaction)
+      const result = db.exec(
+        `SELECT COUNT(*) FROM event_registrations WHERE event_id = ? AND status = 'CONFIRMED'`,
+        [eventId]
+      );
+      const confirmedCount = result[0]?.values?.[0]?.[0] as number || 0;
+      const venueCapacity = venue.capacity || 0;
+
+      if (confirmedCount < venueCapacity) {
+        registrationStatus = 'CONFIRMED';
+      } else {
+        registrationStatus = 'WAITLISTED';
+      }
     }
+
+    // Register user within transaction
+    registration = await registrationRepository.registerUser(eventId, userId, registrationStatus);
+
+    // Commit transaction
+    db.run('COMMIT');
+    saveDatabase();
+
+  } catch (error) {
+    // Rollback on error
+    try {
+      db.run('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('Rollback failed:', rollbackError);
+    }
+    throw error;
   }
 
-  // Register user
-  const registration = await registrationRepository.registerUser(eventId, userId, registrationStatus);
+  // Send notification (outside transaction - non-critical)
+  try {
+    if (registrationStatus === 'CONFIRMED') {
+      await notificationService.notifyRegistrationConfirmed(userId, event);
+    } else {
+      await notificationService.notifyWaitlisted(userId, event);
+    }
+  } catch (notifyError) {
+    console.error('Failed to send registration notification:', notifyError);
+    // Don't fail the registration if notification fails
+  }
 
   return {
     registration,
@@ -110,11 +151,25 @@ export async function unregisterFromEvent(eventId: string, userId: string): Prom
   // Unregister user
   await registrationRepository.unregisterUser(eventId, userId);
 
+  // Send unregistration notification
+  try {
+    await notificationService.notifyUnregistered(userId, event);
+  } catch (notifyError) {
+    console.error('Failed to send unregistration notification:', notifyError);
+  }
+
   // If user was confirmed and venue has capacity limit, promote next from waitlist
   if (wasConfirmed && venue.type !== 'OPENAIR') {
     const nextInWaitlist = await registrationRepository.getNextFromWaitlist(eventId);
     if (nextInWaitlist) {
       await registrationRepository.promoteFromWaitlist(eventId, nextInWaitlist.user_id);
+      
+      // Notify promoted user
+      try {
+        await notificationService.notifyPromotedFromWaitlist(nextInWaitlist.user_id, event);
+      } catch (notifyError) {
+        console.error('Failed to send promotion notification:', notifyError);
+      }
     }
   }
 }

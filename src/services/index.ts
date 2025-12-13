@@ -4,3 +4,5 @@ export * as userService from './userService';
 export * as venueService from './venueService';
 export * as eventService from './eventService';
 export * as registrationService from './registrationService';
+export * as notificationService from './notificationService';
+export * as reminderScheduler from './reminderScheduler';

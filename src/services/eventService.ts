@@ -2,6 +2,7 @@ import { Event, EventStatus } from '../types';
 import * as eventRepository from '../repositories/eventRepository';
 import * as venueRepository from '../repositories/venueRepository';
 import * as userRepository from '../repositories/userRepository';
+import * as notificationService from './notificationService';
 
 export interface CreateEventInput {
   title: string;
@@ -309,7 +310,18 @@ export async function changeEventStatus(
     throw new Error(`Cannot change status from ${event.status} to ${newStatus}`);
   }
 
-  return eventRepository.changeEventStatus(eventId, newStatus);
+  const updatedEvent = await eventRepository.changeEventStatus(eventId, newStatus);
+
+  // Send notifications for cancellation
+  if (newStatus === 'CANCELLED') {
+    try {
+      await notificationService.notifyEventCancelled(updatedEvent);
+    } catch (notifyError) {
+      console.error('Failed to send cancellation notifications:', notifyError);
+    }
+  }
+
+  return updatedEvent;
 }
 
 /**

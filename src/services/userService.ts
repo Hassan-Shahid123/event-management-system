@@ -175,3 +175,44 @@ function isValidEmail(email: string): boolean {
 function isValidRole(role: string): role is UserRole {
   return ['STUDENT', 'ORGANIZER', 'ADMIN'].includes(role);
 }
+
+/**
+ * Update a user's role (Admin only)
+ */
+export async function updateUserRole(
+  userId: string,
+  newRole: UserRole,
+  adminId: string
+): Promise<Omit<User, 'password_hash'>> {
+  // Verify admin permissions
+  const admin = await userRepository.getUserById(adminId);
+  if (!admin) {
+    throw new Error('Admin user not found');
+  }
+  
+  if (admin.role !== 'ADMIN') {
+    throw new Error('Only admins can update user roles');
+  }
+
+  // Prevent self-demotion
+  if (userId === adminId && newRole !== 'ADMIN') {
+    throw new Error('Admins cannot demote themselves');
+  }
+
+  // Validate new role
+  if (!isValidRole(newRole)) {
+    throw new Error('Invalid user role');
+  }
+
+  // Check if user exists
+  const user = await userRepository.getUserById(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Update the role
+  const updatedUser = await userRepository.updateUser(userId, { role: newRole });
+  
+  const { password_hash, ...userWithoutPassword } = updatedUser;
+  return userWithoutPassword;
+}

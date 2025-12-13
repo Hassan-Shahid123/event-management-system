@@ -15,3 +15,6 @@ export * from './eventRepository';
 
 // Registration Repository
 export * from './registrationRepository';
+
+// Notification Repository
+export * from './notificationRepository';
