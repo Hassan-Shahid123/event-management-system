@@ -10,4 +10,7 @@ export * from './types';
 // Export database
 export * from './database';
 
+// Export repositories
+export * from './repositories';
+
 console.log('CampusConnect Event Management System - Ready!');
