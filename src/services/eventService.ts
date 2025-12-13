@@ -384,9 +384,9 @@ export async function getEventStats(): Promise<{
 
   return {
     total: allEvents.length,
-    upcoming: allEvents.filter(e => e.status === 'UPCOMING').length,
-    inProgress: allEvents.filter(e => e.status === 'INPROGRESS').length,
-    completed: allEvents.filter(e => e.status === 'COMPLETED').length,
-    cancelled: allEvents.filter(e => e.status === 'CANCELLED').length,
+    upcoming: allEvents.filter((e: Event) => e.status === 'UPCOMING').length,
+    inProgress: allEvents.filter((e: Event) => e.status === 'INPROGRESS').length,
+    completed: allEvents.filter((e: Event) => e.status === 'COMPLETED').length,
+    cancelled: allEvents.filter((e: Event) => e.status === 'CANCELLED').length,
   };
 }
