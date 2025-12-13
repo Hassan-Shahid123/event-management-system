@@ -2,10 +2,13 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { User, UserRole } from '../types';
 import * as userRepository from '../repositories/userRepository';
+import { isValidEmail, isValidRole, MIN_PASSWORD_LENGTH } from '../utils/validation';
+import { removePasswordHash } from '../utils/userHelpers';
 
 // JWT configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRES_IN = '7d';
+/** Number of bcrypt salt rounds for password hashing (10 is recommended balance of security and performance) */
 const SALT_ROUNDS = 10;
 
 export interface RegisterInput {
@@ -32,7 +35,10 @@ export interface TokenPayload {
 }
 
 /**
- * Register a new user with password hashing
+ * Registers a new user and returns an auth token.
+ * @param input requires non-empty name, valid email format, password length >= 6, and role in {STUDENT, ORGANIZER, ADMIN}; email must be unused.
+ * @returns newly created user without password_hash plus JWT; effects: inserts user with hashed password.
+ * @throws Error when validation fails or email is already registered.
  */
 export async function register(input: RegisterInput): Promise<AuthResult> {
   // Validate input
@@ -44,8 +50,8 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
     throw new Error('Valid email is required');
   }
 
-  if (!input.password || input.password.length < 6) {
-    throw new Error('Password must be at least 6 characters long');
+  if (!input.password || input.password.length < MIN_PASSWORD_LENGTH) {
+    throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
   }
 
   if (!isValidRole(input.role)) {
@@ -72,17 +78,17 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
   // Generate token
   const token = generateToken(user);
 
-  // Return user without password hash
-  const { password_hash: _, ...userWithoutPassword } = user;
-
   return {
-    user: userWithoutPassword,
+    user: removePasswordHash(user),
     token,
   };
 }
 
 /**
- * Login user with email and password
+ * Authenticates a user by email and password.
+ * @param input requires non-empty email and password matching a stored user.
+ * @returns user without password_hash plus JWT; effects: none beyond token issuance.
+ * @throws Error when credentials are invalid or user not found.
  */
 export async function login(input: LoginInput): Promise<AuthResult> {
   // Validate input
@@ -115,7 +121,10 @@ export async function login(input: LoginInput): Promise<AuthResult> {
 }
 
 /**
- * Verify JWT token and return decoded payload
+ * Verifies a JWT and returns its payload.
+ * @param token requires a signed token issued by this service.
+ * @returns decoded payload containing user id, email, and role; effects: none.
+ * @throws Error when the token is invalid or expired.
  */
 export function verifyToken(token: string): TokenPayload {
   try {
@@ -127,7 +136,9 @@ export function verifyToken(token: string): TokenPayload {
 }
 
 /**
- * Generate JWT token for user
+ * Generates a JWT for the given user.
+ * @param user requires persisted user record.
+ * @returns signed token embedding user id, email, and role; effects: none.
  */
 function generateToken(user: User): string {
   const payload: TokenPayload = {
@@ -140,7 +151,12 @@ function generateToken(user: User): string {
 }
 
 /**
- * Change user password
+ * Changes a user's password after verifying the current password.
+ * @param userId user to update; must exist.
+ * @param currentPassword requires matching the existing password.
+ * @param newPassword requires length >= 6.
+ * @returns resolves when the password hash is updated; effects: persists new hash for the user.
+ * @throws Error when user is missing, validation fails, or current password is incorrect.
  */
 export async function changePassword(
   userId: string,
@@ -152,8 +168,8 @@ export async function changePassword(
     throw new Error('Current password and new password are required');
   }
 
-  if (newPassword.length < 6) {
-    throw new Error('New password must be at least 6 characters long');
+  if (newPassword.length < MIN_PASSWORD_LENGTH) {
+    throw new Error(`New password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
   }
 
   // Get user
@@ -176,23 +192,10 @@ export async function changePassword(
 }
 
 /**
- * Hash a password (utility function)
+ * Hashes a plaintext password.
+ * @param password plaintext to hash; requires non-empty string.
+ * @returns bcrypt hash string.
  */
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, SALT_ROUNDS);
-}
-
-/**
- * Validate email format
- */
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
-
-/**
- * Validate user role
- */
-function isValidRole(role: string): role is UserRole {
-  return ['STUDENT', 'ORGANIZER', 'ADMIN'].includes(role);
 }

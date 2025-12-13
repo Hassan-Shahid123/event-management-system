@@ -1,6 +1,9 @@
 import { User, UserRole } from '../types';
 import * as userRepository from '../repositories/userRepository';
 import { hashPassword } from './authService';
+import { isValidEmail, isValidRole } from '../utils/validation';
+import { removePasswordHash, removePasswordHashes } from '../utils/userHelpers';
+import { hasRole } from '../utils/permissionHelpers';
 
 export interface CreateUserInput {
   name: string;
@@ -16,7 +19,9 @@ export interface UpdateUserInput {
 }
 
 /**
- * Get user by ID (without password hash)
+ * Retrieves a user by id without returning the password hash.
+ * @param userId requires existing user id.
+ * @returns user without password_hash or null if missing; effects: read-only.
  */
 export async function getUserById(userId: string): Promise<Omit<User, 'password_hash'> | null> {
   const user = await userRepository.getUserById(userId);
@@ -24,12 +29,13 @@ export async function getUserById(userId: string): Promise<Omit<User, 'password_
     return null;
   }
 
-  const { password_hash, ...userWithoutPassword } = user;
-  return userWithoutPassword;
+  return removePasswordHash(user);
 }
 
 /**
- * Get user by email (without password hash)
+ * Retrieves a user by email without returning the password hash.
+ * @param email requires valid email format.
+ * @returns user without password_hash or null; effects: read-only.
  */
 export async function getUserByEmail(email: string): Promise<Omit<User, 'password_hash'> | null> {
   const user = await userRepository.getUserByEmail(email);
@@ -37,28 +43,34 @@ export async function getUserByEmail(email: string): Promise<Omit<User, 'passwor
     return null;
   }
 
-  const { password_hash, ...userWithoutPassword } = user;
-  return userWithoutPassword;
+  return removePasswordHash(user);
 }
 
 /**
- * Get all users (without password hashes)
+ * Lists all users without password hashes.
+ * @returns users; effects: read-only.
  */
 export async function getAllUsers(): Promise<Omit<User, 'password_hash'>[]> {
   const users = await userRepository.getAllUsers();
-  return users.map(({ password_hash, ...user }) => user);
+  return removePasswordHashes(users);
 }
 
 /**
- * Get users by role (without password hashes)
+ * Lists users filtered by role, omitting password hashes.
+ * @param role requires valid role.
+ * @returns users; effects: read-only.
  */
 export async function getUsersByRole(role: UserRole): Promise<Omit<User, 'password_hash'>[]> {
   const users = await userRepository.getUsersByRole(role);
-  return users.map(({ password_hash, ...user }) => user);
+  return removePasswordHashes(users);
 }
 
 /**
- * Update user profile
+ * Updates mutable fields of a user (excluding password here).
+ * @param userId requires existing user.
+ * @param input optional fields; requires non-empty name, valid email if provided, valid role if provided; new email must be unique.
+ * @returns updated user without password_hash; effects: persists changes.
+ * @throws Error when validation fails or user missing.
  */
 export async function updateUser(
   userId: string,
@@ -94,12 +106,14 @@ export async function updateUser(
   // Update user
   const updatedUser = await userRepository.updateUser(userId, input);
 
-  const { password_hash, ...userWithoutPassword } = updatedUser;
-  return userWithoutPassword;
+  return removePasswordHash(updatedUser);
 }
 
 /**
- * Delete user
+ * Deletes a user.
+ * @param userId requires existing user.
+ * @returns void; effects: removes user row.
+ * @throws Error when user missing.
  */
 export async function deleteUser(userId: string): Promise<void> {
   const user = await userRepository.getUserById(userId);
@@ -111,21 +125,25 @@ export async function deleteUser(userId: string): Promise<void> {
 }
 
 /**
- * Check if email exists
+ * Checks whether an email is already registered.
+ * @returns true if a user with the email exists; effects: read-only.
  */
 export async function emailExists(email: string): Promise<boolean> {
   return userRepository.emailExists(email);
 }
 
 /**
- * Get user count by role
+ * Counts users by role.
+ * @param role requires valid role.
+ * @returns number of users with the role; effects: read-only.
  */
 export async function getUserCountByRole(role: UserRole): Promise<number> {
   return userRepository.getUserCountByRole(role);
 }
 
 /**
- * Get user statistics
+ * Aggregates user counts by role.
+ * @returns totals for students, organizers, admins; effects: read-only.
  */
 export async function getUserStats(): Promise<{
   total: number;
@@ -148,36 +166,22 @@ export async function getUserStats(): Promise<{
 }
 
 /**
- * Validate user has permission for action
+ * Checks whether a user satisfies a required role (ADMIN always allowed).
+ * @param user user to evaluate.
+ * @param requiredRole single role or list of acceptable roles.
+ * @returns true when user has permission; effects: pure.
  */
 export function hasPermission(user: User, requiredRole: UserRole | UserRole[]): boolean {
-  const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-  
-  // Admin has all permissions
-  if (user.role === 'ADMIN') {
-    return true;
-  }
-
-  return roles.includes(user.role);
+  return hasRole(user, requiredRole);
 }
 
 /**
- * Validate email format
- */
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
-
-/**
- * Validate user role
- */
-function isValidRole(role: string): role is UserRole {
-  return ['STUDENT', 'ORGANIZER', 'ADMIN'].includes(role);
-}
-
-/**
- * Update a user's role (Admin only)
+ * Updates a user's role; only admins may perform this action.
+ * @param userId target user id.
+ * @param newRole requires valid role; prevents admin self-demotion.
+ * @param adminId requires existing ADMIN performing the change.
+ * @returns updated user without password_hash; effects: persists new role.
+ * @throws Error when permissions or validation fail.
  */
 export async function updateUserRole(
   userId: string,

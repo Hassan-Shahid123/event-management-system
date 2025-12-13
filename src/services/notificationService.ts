@@ -15,7 +15,10 @@ import { Notification, Event } from '../types';
 // ============================================================================
 
 /**
- * Notify user of registration confirmation
+ * Creates a notification for a confirmed registration.
+ * @param userId requires existing user id.
+ * @param event requires event context for messaging.
+ * @returns created notification; effects: inserts notification row.
  */
 export async function notifyRegistrationConfirmed(
     userId: string,
@@ -31,7 +34,7 @@ export async function notifyRegistrationConfirmed(
 }
 
 /**
- * Notify user they've been added to waitlist
+ * Creates a notification indicating the user was waitlisted.
  */
 export async function notifyWaitlisted(
     userId: string,
@@ -47,7 +50,7 @@ export async function notifyWaitlisted(
 }
 
 /**
- * Notify user they've been promoted from waitlist
+ * Creates a notification when a user is promoted from waitlist to confirmed.
  */
 export async function notifyPromotedFromWaitlist(
     userId: string,
@@ -63,7 +66,7 @@ export async function notifyPromotedFromWaitlist(
 }
 
 /**
- * Notify user they've been unregistered
+ * Creates a notification when a user is unregistered from an event.
  */
 export async function notifyUnregistered(
     userId: string,
@@ -83,7 +86,9 @@ export async function notifyUnregistered(
 // ============================================================================
 
 /**
- * Notify all registered users of event cancellation
+ * Notifies all registrants that an event was cancelled.
+ * @param event requires the cancelled event.
+ * @returns void; effects: inserts notifications for each registration.
  */
 export async function notifyEventCancelled(event: Event): Promise<void> {
     const registrations = await registrationRepository.getEventRegistrations(event.id);
@@ -100,7 +105,10 @@ export async function notifyEventCancelled(event: Event): Promise<void> {
 }
 
 /**
- * Notify all registered users of event update
+ * Notifies all registrants about an event update.
+ * @param event event being updated.
+ * @param changes human-readable description of changes.
+ * @returns void; effects: inserts notifications for each registration.
  */
 export async function notifyEventUpdated(
     event: Event,
@@ -120,7 +128,10 @@ export async function notifyEventUpdated(
 }
 
 /**
- * Send reminder for an upcoming event
+ * Sends reminders to confirmed registrants for an upcoming event.
+ * @param event requires upcoming event.
+ * @param hoursUntilEvent indicates approximate time until start for message text.
+ * @returns void; effects: inserts reminder notifications for confirmed attendees.
  */
 export async function sendEventReminder(
     event: Event,
@@ -154,49 +165,51 @@ export async function sendEventReminder(
 // ============================================================================
 
 /**
- * Get all notifications for a user
+ * Lists notifications for a user ordered by recency.
+ * @returns notifications; effects: read-only.
  */
 export async function getUserNotifications(userId: string): Promise<Notification[]> {
     return notificationRepository.getUserNotifications(userId);
 }
 
 /**
- * Get unread notifications for a user
+ * Lists unread notifications for a user.
  */
 export async function getUnreadNotifications(userId: string): Promise<Notification[]> {
     return notificationRepository.getUnreadNotifications(userId);
 }
 
 /**
- * Get unread notification count
+ * Counts unread notifications for a user.
  */
 export async function getUnreadCount(userId: string): Promise<number> {
     return notificationRepository.getUnreadCount(userId);
 }
 
 /**
- * Mark notification as read
+ * Marks a single notification as read.
+ * @param notificationId requires existing notification id.
  */
 export async function markAsRead(notificationId: string): Promise<void> {
     return notificationRepository.markAsRead(notificationId);
 }
 
 /**
- * Mark all notifications as read for a user
+ * Marks all notifications for a user as read.
  */
 export async function markAllAsRead(userId: string): Promise<void> {
     return notificationRepository.markAllAsRead(userId);
 }
 
 /**
- * Delete a notification
+ * Deletes a single notification.
  */
 export async function deleteNotification(notificationId: string): Promise<void> {
     return notificationRepository.deleteNotification(notificationId);
 }
 
 /**
- * Delete all notifications for a user
+ * Deletes all notifications for a user.
  */
 export async function deleteAllUserNotifications(userId: string): Promise<void> {
     return notificationRepository.deleteAllUserNotifications(userId);
@@ -207,7 +220,7 @@ export async function deleteAllUserNotifications(userId: string): Promise<void> 
 // ============================================================================
 
 /**
- * Format datetime for display in notifications
+ * Formats an ISO datetime for notification text.
  */
 function formatDateTime(isoString: string): string {
     const date = new Date(isoString);
@@ -222,7 +235,8 @@ function formatDateTime(isoString: string): string {
 }
 
 /**
- * Clean up old notifications (maintenance task)
+ * Deletes notifications older than the specified age.
+ * @param daysOld age threshold in days (default 30).
  */
 export async function cleanupOldNotifications(daysOld: number = 30): Promise<void> {
     return notificationRepository.deleteOldNotifications(daysOld);

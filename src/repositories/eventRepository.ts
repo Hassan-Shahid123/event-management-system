@@ -7,6 +7,7 @@
 import { getDatabase, saveDatabase } from '../database';
 import { Event, EventStatus } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { getFirstRow, getAllRows } from '../utils/dbHelpers';
 
 /**
  * Map database row to Event object
@@ -26,7 +27,9 @@ function mapRowToEvent(row: any[]): Event {
 }
 
 /**
- * Create a new event
+ * Persists a new event row.
+ * @param eventData requires title/description text, ISO datetimes, valid venue/organizer ids, and optional status.
+ * @returns created event with generated id and timestamps; effects: writes to events table.
  */
 export async function createEvent(eventData: {
     title: string;
@@ -65,7 +68,9 @@ export async function createEvent(eventData: {
 }
 
 /**
- * Get event by ID
+ * Loads an event by id.
+ * @param id event id.
+ * @returns event or null when missing; effects: read-only.
  */
 export async function getEventById(id: string): Promise<Event | null> {
     const db = await getDatabase();
@@ -75,33 +80,26 @@ export async function getEventById(id: string): Promise<Event | null> {
         [id]
     );
 
-    if (result.length === 0 || !result[0] || !result[0].values || result[0].values.length === 0) {
-        return null;
-    }
-
-    const row = result[0].values[0];
+    const row = getFirstRow(result);
     if (!row) return null;
     
     return mapRowToEvent(row);
 }
 
 /**
- * Get all events
+ * Returns all events ordered by start_datetime descending.
  */
 export async function getAllEvents(): Promise<Event[]> {
     const db = await getDatabase();
     
     const result = db.exec(`SELECT * FROM events ORDER BY start_datetime DESC`);
 
-    if (result.length === 0 || !result[0] || !result[0].values) {
-        return [];
-    }
-
-    return result[0].values.map(mapRowToEvent);
+    return getAllRows(result).map(mapRowToEvent);
 }
 
 /**
- * Get events by organizer
+ * Returns events created by the given organizer.
+ * @param organizerId organizer user id.
  */
 export async function getEventsByOrganizer(organizerId: string): Promise<Event[]> {
     const db = await getDatabase();
@@ -111,15 +109,11 @@ export async function getEventsByOrganizer(organizerId: string): Promise<Event[]
         [organizerId]
     );
 
-    if (result.length === 0 || !result[0] || !result[0].values) {
-        return [];
-    }
-
-    return result[0].values.map(mapRowToEvent);
+    return getAllRows(result).map(mapRowToEvent);
 }
 
 /**
- * Get events by status
+ * Returns events filtered by status.
  */
 export async function getEventsByStatus(status: EventStatus): Promise<Event[]> {
     const db = await getDatabase();
@@ -129,15 +123,11 @@ export async function getEventsByStatus(status: EventStatus): Promise<Event[]> {
         [status]
     );
 
-    if (result.length === 0 || !result[0] || !result[0].values) {
-        return [];
-    }
-
-    return result[0].values.map(mapRowToEvent);
+    return getAllRows(result).map(mapRowToEvent);
 }
 
 /**
- * Get events by venue
+ * Returns events scheduled at a venue.
  */
 export async function getEventsByVenue(venueId: string): Promise<Event[]> {
     const db = await getDatabase();
@@ -147,15 +137,11 @@ export async function getEventsByVenue(venueId: string): Promise<Event[]> {
         [venueId]
     );
 
-    if (result.length === 0 || !result[0] || !result[0].values) {
-        return [];
-    }
-
-    return result[0].values.map(mapRowToEvent);
+    return getAllRows(result).map(mapRowToEvent);
 }
 
 /**
- * Get upcoming events
+ * Returns events whose start is in the future ordered soonest-first.
  */
 export async function getUpcomingEvents(): Promise<Event[]> {
     const db = await getDatabase();
@@ -168,15 +154,15 @@ export async function getUpcomingEvents(): Promise<Event[]> {
         [now]
     );
 
-    if (result.length === 0 || !result[0] || !result[0].values) {
-        return [];
-    }
-
-    return result[0].values.map(mapRowToEvent);
+    return getAllRows(result).map(mapRowToEvent);
 }
 
 /**
- * Update event
+ * Updates specified fields on an event.
+ * @param id event id; requires existing event.
+ * @param updates partial fields to change.
+ * @returns updated event; effects: writes to events table.
+ * @throws Error when event missing after update.
  */
 export async function updateEvent(
     id: string,
@@ -238,7 +224,9 @@ export async function updateEvent(
 }
 
 /**
- * Delete event
+ * Deletes an event by id.
+ * @param id event id.
+ * @returns void; effects: removes row and cascades dependent rows.
  */
 export async function deleteEvent(id: string): Promise<void> {
     const db = await getDatabase();
@@ -249,14 +237,16 @@ export async function deleteEvent(id: string): Promise<void> {
 }
 
 /**
- * Change event status
+ * Convenience wrapper to update only the status field.
  */
 export async function changeEventStatus(id: string, status: EventStatus): Promise<Event> {
     return updateEvent(id, { status });
 }
 
 /**
- * Search events by title
+ * Searches events whose title contains a term.
+ * @param searchTerm substring to match.
+ * @returns matching events ordered by start_datetime descending.
  */
 export async function searchEventsByTitle(searchTerm: string): Promise<Event[]> {
     const db = await getDatabase();
@@ -268,9 +258,5 @@ export async function searchEventsByTitle(searchTerm: string): Promise<Event[]> 
         [`%${searchTerm}%`]
     );
 
-    if (result.length === 0 || !result[0] || !result[0].values) {
-        return [];
-    }
-
-    return result[0].values.map(mapRowToEvent);
+    return getAllRows(result).map(mapRowToEvent);
 }

@@ -14,17 +14,22 @@
  * Role represents the privilege level of a user in the system.
  * 
  * Ordering of privileges: STUDENT < ORGANIZER < ADMIN
+ * Invariant: A user has exactly one role at any time.
  */
 export type Role = 'STUDENT' | 'ORGANIZER' | 'ADMIN';
 export type UserRole = Role; // Alias for compatibility
 
 /**
  * EventStatus represents the lifecycle state of an event.
+ * Valid transitions: UPCOMING -> {INPROGRESS, CANCELLED}; INPROGRESS -> {COMPLETED, CANCELLED}.
+ * COMPLETED and CANCELLED are terminal states.
  */
 export type EventStatus = 'UPCOMING' | 'INPROGRESS' | 'COMPLETED' | 'CANCELLED';
 
 /**
  * VenueType represents the type of venue available for events.
+ * OPENAIR venues have unlimited capacity (capacity field should be null/undefined).
+ * All other types require a positive capacity value.
  */
 export type VenueType = 
     | 'LAB'
@@ -40,11 +45,13 @@ export type VenueType =
 
 /**
  * RegistrationStatus represents the status of an event registration.
+ * CONFIRMED users are guaranteed a spot; WAITLISTED users may be promoted when capacity allows.
  */
 export type RegistrationStatus = 'CONFIRMED' | 'WAITLISTED';
 
 /**
  * NotificationType represents the type of notification.
+ * Used to categorize and display notifications appropriately.
  */
 export type NotificationType = 
     | 'REGISTRATION_CONFIRMED'
@@ -61,6 +68,11 @@ export type NotificationType =
 
 /**
  * User represents a user in the system (maps to users table in SQLite).
+ * 
+ * Invariants:
+ * - email is unique across all users
+ * - password_hash should never be returned to clients (use Omit<User, 'password_hash'>)
+ * - created_at is immutable after creation
  */
 export interface User {
     id: string;
@@ -74,7 +86,9 @@ export interface User {
 /**
  * Venue represents a physical location (maps to venues table in SQLite).
  * 
- * Note: capacity is required for all venue types except OPENAIR (unlimited capacity).
+ * Invariants:
+ * - capacity is required for all venue types except OPENAIR (unlimited capacity)
+ * - capacity, when present, must be positive
  * Validation should be enforced at the service layer.
  */
 export interface Venue {
@@ -86,6 +100,12 @@ export interface Venue {
 
 /**
  * Event represents a campus event (maps to events table in SQLite).
+ * 
+ * Invariants:
+ * - start_datetime and end_datetime are ISO 8601 format strings
+ * - end_datetime must be after start_datetime
+ * - status follows valid transitions (see EventStatus)
+ * - venue_id and organizer_id reference existing records
  */
 export interface Event {
     id: string;
@@ -102,6 +122,11 @@ export interface Event {
 /**
  * EventRegistration represents a user's registration for an event
  * (maps to event_registrations table in SQLite).
+ * 
+ * Invariants:
+ * - unique constraint: (event_id, user_id) pair is unique
+ * - status is either CONFIRMED or WAITLISTED
+ * - registered_at is immutable after creation
  */
 export interface EventRegistration {
     id: string;
@@ -111,20 +136,14 @@ export interface EventRegistration {
     registered_at: string;
 }
 
-// ============================================================================
-// UTILITY TYPES
-// ============================================================================
-
-/**
- * Result type for operations that may succeed or fail.
- */
-export type Result<T, E = string> = 
-    | { success: true; value: T }
-    | { success: false; error: E };
-
 /**
  * Notification represents a user notification
  * (maps to notifications table in SQLite).
+ * 
+ * Invariants:
+ * - user_id references an existing user
+ * - event_id, when present, references an existing event
+ * - is_read defaults to false and can be set true but not back to false
  */
 export interface Notification {
     id: string;

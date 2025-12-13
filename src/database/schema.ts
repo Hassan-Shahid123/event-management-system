@@ -2,6 +2,7 @@
  * SQLite Database Schema
  * 
  * This file contains the SQL statements to create all database tables.
+ * Exported as a single DDL string executed during database initialization.
  */
 
 export const createTablesSQL = `

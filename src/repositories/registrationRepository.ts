@@ -7,9 +7,14 @@
 import { getDatabase, saveDatabase } from '../database';
 import { EventRegistration, RegistrationStatus } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { getFirstRow, getAllRows, getCountValue, hasResults } from '../utils/dbHelpers';
 
 /**
- * Register a user for an event
+ * Inserts a registration row for a user and event.
+ * @param eventId event id.
+ * @param userId user id.
+ * @param status registration status (defaults CONFIRMED).
+ * @returns created registration with generated id; effects: writes to event_registrations.
  */
 export async function registerUser(
     eventId: string,
@@ -38,7 +43,8 @@ export async function registerUser(
 }
 
 /**
- * Unregister a user from an event
+ * Removes a user's registration for an event.
+ * @returns true when deletion command executed; effects: deletes registration rows.
  */
 export async function unregisterUser(eventId: string, userId: string): Promise<boolean> {
     const db = await getDatabase();
@@ -53,7 +59,7 @@ export async function unregisterUser(eventId: string, userId: string): Promise<b
 }
 
 /**
- * Get all registrations for an event
+ * Fetches registrations for an event ordered by registration time.
  */
 export async function getEventRegistrations(eventId: string): Promise<EventRegistration[]> {
     const db = await getDatabase();
@@ -77,7 +83,7 @@ export async function getEventRegistrations(eventId: string): Promise<EventRegis
 }
 
 /**
- * Get confirmed registrations (not waitlisted) for an event
+ * Fetches confirmed registrations for an event ordered by registration time.
  */
 export async function getConfirmedRegistrations(eventId: string): Promise<EventRegistration[]> {
     const db = await getDatabase();
@@ -103,7 +109,7 @@ export async function getConfirmedRegistrations(eventId: string): Promise<EventR
 }
 
 /**
- * Get waitlisted registrations for an event
+ * Fetches waitlisted registrations for an event ordered by registration time.
  */
 export async function getWaitlistedRegistrations(eventId: string): Promise<EventRegistration[]> {
     const db = await getDatabase();
@@ -129,7 +135,7 @@ export async function getWaitlistedRegistrations(eventId: string): Promise<Event
 }
 
 /**
- * Get all events a user is registered for
+ * Fetches registrations belonging to a user ordered by most recent.
  */
 export async function getUserRegistrations(userId: string): Promise<EventRegistration[]> {
     const db = await getDatabase();
@@ -153,7 +159,8 @@ export async function getUserRegistrations(userId: string): Promise<EventRegistr
 }
 
 /**
- * Check if a user is registered for an event
+ * Checks existence of a registration record.
+ * @returns true if the user is registered for the event; effects: read-only.
  */
 export async function isUserRegistered(eventId: string, userId: string): Promise<boolean> {
     const db = await getDatabase();
@@ -167,7 +174,8 @@ export async function isUserRegistered(eventId: string, userId: string): Promise
 }
 
 /**
- * Get registration details for a user and event
+ * Retrieves a specific registration for a user-event pair.
+ * @returns registration or null; effects: read-only.
  */
 export async function getRegistration(eventId: string, userId: string): Promise<EventRegistration | null> {
     const db = await getDatabase();
@@ -194,7 +202,9 @@ export async function getRegistration(eventId: string, userId: string): Promise<
 }
 
 /**
- * Move a user from waitlist to confirmed registration
+ * Promotes a waitlisted registration to CONFIRMED.
+ * @returns updated registration; effects: updates status in event_registrations.
+ * @throws Error when registration not found after update.
  */
 export async function promoteFromWaitlist(eventId: string, userId: string): Promise<EventRegistration> {
     const db = await getDatabase();
@@ -215,7 +225,8 @@ export async function promoteFromWaitlist(eventId: string, userId: string): Prom
 }
 
 /**
- * Get registration count for an event (optionally filter by status)
+ * Counts registrations for an event, optionally filtered by status.
+ * @returns integer count; effects: read-only.
  */
 export async function getRegistrationCount(eventId: string, status?: RegistrationStatus): Promise<number> {
     const db = await getDatabase();
@@ -243,7 +254,7 @@ export async function getRegistrationCount(eventId: string, status?: Registratio
 }
 
 /**
- * Get waitlist count for an event
+ * Counts waitlisted registrations for an event.
  */
 export async function getWaitlistCount(eventId: string): Promise<number> {
     const db = await getDatabase();
@@ -266,7 +277,7 @@ export async function getWaitlistCount(eventId: string): Promise<number> {
 }
 
 /**
- * Get next person from waitlist (oldest registration)
+ * Returns the earliest waitlisted registration for an event, if any.
  */
 export async function getNextFromWaitlist(eventId: string): Promise<EventRegistration | null> {
     const db = await getDatabase();
@@ -296,7 +307,8 @@ export async function getNextFromWaitlist(eventId: string): Promise<EventRegistr
 }
 
 /**
- * Delete all registrations for an event
+ * Deletes all registrations for a given event.
+ * @returns true when deletion executed; effects: removes rows from event_registrations.
  */
 export async function deleteEventRegistrations(eventId: string): Promise<boolean> {
     const db = await getDatabase();

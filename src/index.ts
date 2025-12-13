@@ -2,6 +2,8 @@
  * CampusConnect Event Management System
  * 
  * Main entry point - re-exports all public modules.
+ * Provides access to types, database utilities, repositories, and services.
+ * Effects: logs initialization message on module load.
  */
 
 // Export types

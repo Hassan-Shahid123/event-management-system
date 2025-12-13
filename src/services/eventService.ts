@@ -3,6 +3,8 @@ import * as eventRepository from '../repositories/eventRepository';
 import * as venueRepository from '../repositories/venueRepository';
 import * as userRepository from '../repositories/userRepository';
 import * as notificationService from './notificationService';
+import { validateDatetimeRange, isValidEventStatus } from '../utils/validation';
+import { requireEventPermission } from '../utils/permissionHelpers';
 
 export interface CreateEventInput {
   title: string;
@@ -24,7 +26,10 @@ export interface UpdateEventInput {
 }
 
 /**
- * Create a new event
+ * Creates and persists a new event.
+ * @param input requires non-empty title/description, valid ISO datetimes where end > start and start is in the future, organizer exists with role ORGANIZER or ADMIN, venue exists and is available; optional status must be a valid event status.
+ * @returns created event (status defaults to UPCOMING); effects: inserts an event row.
+ * @throws Error when validation fails, organizer/venue is missing, or venue is unavailable.
  */
 export async function createEvent(input: CreateEventInput): Promise<Event> {
   // Validate input
@@ -37,24 +42,7 @@ export async function createEvent(input: CreateEventInput): Promise<Event> {
   }
 
   // Validate dates
-  const startDate = new Date(input.start_datetime);
-  const endDate = new Date(input.end_datetime);
-
-  if (isNaN(startDate.getTime())) {
-    throw new Error('Invalid start datetime format');
-  }
-
-  if (isNaN(endDate.getTime())) {
-    throw new Error('Invalid end datetime format');
-  }
-
-  if (endDate <= startDate) {
-    throw new Error('End date must be after start date');
-  }
-
-  if (startDate < new Date()) {
-    throw new Error('Event cannot be scheduled in the past');
-  }
+  validateDatetimeRange(input.start_datetime, input.end_datetime, true);
 
   // Validate organizer exists and is an organizer or admin
   const organizer = await userRepository.getUserById(input.organizer_id);
@@ -97,21 +85,27 @@ export async function createEvent(input: CreateEventInput): Promise<Event> {
 }
 
 /**
- * Get event by ID
+ * Retrieves an event by id.
+ * @param eventId requires non-empty id.
+ * @returns event or null if not found; effects: read-only.
  */
 export async function getEventById(eventId: string): Promise<Event | null> {
   return eventRepository.getEventById(eventId);
 }
 
 /**
- * Get all events
+ * Lists all events.
+ * @returns events ordered by repository query; effects: read-only.
  */
 export async function getAllEvents(): Promise<Event[]> {
   return eventRepository.getAllEvents();
 }
 
 /**
- * Get events by organizer
+ * Lists events for a specific organizer.
+ * @param organizerId requires existing user; caller must supply a valid organizer id.
+ * @returns events for organizer; effects: read-only.
+ * @throws Error when organizer is missing.
  */
 export async function getEventsByOrganizer(organizerId: string): Promise<Event[]> {
   // Validate organizer exists
@@ -124,7 +118,10 @@ export async function getEventsByOrganizer(organizerId: string): Promise<Event[]
 }
 
 /**
- * Get events by status
+ * Lists events by status.
+ * @param status requires valid event status.
+ * @returns matching events; effects: read-only.
+ * @throws Error when status is invalid.
  */
 export async function getEventsByStatus(status: EventStatus): Promise<Event[]> {
   if (!isValidEventStatus(status)) {
@@ -135,7 +132,10 @@ export async function getEventsByStatus(status: EventStatus): Promise<Event[]> {
 }
 
 /**
- * Get events by venue
+ * Lists events scheduled in a venue.
+ * @param venueId requires existing venue id.
+ * @returns matching events; effects: read-only.
+ * @throws Error when venue is missing.
  */
 export async function getEventsByVenue(venueId: string): Promise<Event[]> {
   // Validate venue exists
@@ -148,14 +148,20 @@ export async function getEventsByVenue(venueId: string): Promise<Event[]> {
 }
 
 /**
- * Get upcoming events
+ * Lists upcoming (future) events.
+ * @returns events whose start is after now; effects: read-only.
  */
 export async function getUpcomingEvents(): Promise<Event[]> {
   return eventRepository.getUpcomingEvents();
 }
 
 /**
- * Update event
+ * Updates mutable fields of an event.
+ * @param eventId requires an existing event.
+ * @param input optional fields; requires non-empty title/description when provided, valid datetimes (end > start) when provided, available venue when changed, valid status when provided.
+ * @param requestingUserId requires organizer of event or ADMIN; event cannot be INPROGRESS/COMPLETED when changing dates.
+ * @returns updated event; effects: persists changes.
+ * @throws Error when validation fails, event not found, or caller lacks permission.
  */
 export async function updateEvent(
   eventId: string,
@@ -174,13 +180,7 @@ export async function updateEvent(
     throw new Error('User not found');
   }
 
-  // Only organizer of the event or admin can update
-  if (
-    existingEvent.organizer_id !== requestingUserId &&
-    requestingUser.role !== 'ADMIN'
-  ) {
-    throw new Error('You do not have permission to update this event');
-  }
+  requireEventPermission(requestingUser, existingEvent);
 
   // Validate input
   if (input.title !== undefined && input.title.trim().length === 0) {
@@ -247,7 +247,11 @@ export async function updateEvent(
 }
 
 /**
- * Delete event
+ * Deletes an event.
+ * @param eventId requires existing event that is not INPROGRESS.
+ * @param requestingUserId requires organizer of the event or ADMIN.
+ * @returns void when deletion succeeds; effects: removes event row (registrations cascade).
+ * @throws Error when event not found, caller lacks permission, or status is INPROGRESS.
  */
 export async function deleteEvent(eventId: string, requestingUserId: string): Promise<void> {
   // Validate event exists
@@ -262,10 +266,7 @@ export async function deleteEvent(eventId: string, requestingUserId: string): Pr
     throw new Error('User not found');
   }
 
-  // Only organizer of the event or admin can delete
-  if (event.organizer_id !== requestingUserId && requestingUser.role !== 'ADMIN') {
-    throw new Error('You do not have permission to delete this event');
-  }
+  requireEventPermission(requestingUser, event);
 
   // Don't allow deleting events that are in progress
   if (event.status === 'INPROGRESS') {
@@ -276,7 +277,12 @@ export async function deleteEvent(eventId: string, requestingUserId: string): Pr
 }
 
 /**
- * Change event status
+ * Changes an event's status with transition checks.
+ * @param eventId requires existing event.
+ * @param newStatus requires valid status and a permitted transition from current status.
+ * @param requestingUserId requires organizer of event or ADMIN.
+ * @returns updated event; effects: updates status and triggers cancellation notifications when moving to CANCELLED.
+ * @throws Error when event missing, transition invalid, or caller unauthorized.
  */
 export async function changeEventStatus(
   eventId: string,
@@ -295,10 +301,7 @@ export async function changeEventStatus(
     throw new Error('User not found');
   }
 
-  // Only organizer of the event or admin can change status
-  if (event.organizer_id !== requestingUserId && requestingUser.role !== 'ADMIN') {
-    throw new Error('You do not have permission to change this event status');
-  }
+  requireEventPermission(requestingUser, event);
 
   // Validate status
   if (!isValidEventStatus(newStatus)) {
@@ -325,7 +328,10 @@ export async function changeEventStatus(
 }
 
 /**
- * Search events by title
+ * Searches events by title substring (case-insensitive per database collation).
+ * @param searchTerm requires non-empty term.
+ * @returns matching events; effects: read-only.
+ * @throws Error when searchTerm is empty.
  */
 export async function searchEventsByTitle(searchTerm: string): Promise<Event[]> {
   if (!searchTerm || searchTerm.trim().length === 0) {
@@ -336,31 +342,25 @@ export async function searchEventsByTitle(searchTerm: string): Promise<Event[]> 
 }
 
 /**
- * Cancel event (shorthand for changing status to CANCELLED)
+ * Convenience wrapper that cancels an event.
+ * @returns updated event after status change to CANCELLED; effects: same as changeEventStatus.
  */
 export async function cancelEvent(eventId: string, requestingUserId: string): Promise<Event> {
   return changeEventStatus(eventId, 'CANCELLED', requestingUserId);
 }
 
 /**
- * Start event (shorthand for changing status to INPROGRESS)
+ * Convenience wrapper that marks an event INPROGRESS.
  */
 export async function startEvent(eventId: string, requestingUserId: string): Promise<Event> {
   return changeEventStatus(eventId, 'INPROGRESS', requestingUserId);
 }
 
 /**
- * Complete event (shorthand for changing status to COMPLETED)
+ * Convenience wrapper that marks an event COMPLETED.
  */
 export async function completeEvent(eventId: string, requestingUserId: string): Promise<Event> {
   return changeEventStatus(eventId, 'COMPLETED', requestingUserId);
-}
-
-/**
- * Validate event status
- */
-function isValidEventStatus(status: string): status is EventStatus {
-  return ['UPCOMING', 'INPROGRESS', 'COMPLETED', 'CANCELLED'].includes(status);
 }
 
 /**
@@ -383,7 +383,8 @@ function isValidStatusTransition(from: EventStatus, to: EventStatus): boolean {
 }
 
 /**
- * Get event statistics
+ * Summarizes event counts by status.
+ * @returns total counts of events by lifecycle state; effects: read-only aggregation.
  */
 export async function getEventStats(): Promise<{
   total: number;

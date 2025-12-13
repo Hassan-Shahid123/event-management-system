@@ -13,8 +13,8 @@ let db: Database | null = null;
 const DB_PATH = path.join(process.cwd(), 'campus_connect.db');
 
 /**
- * Initialize and return the database connection.
- * Creates tables if they don't exist.
+ * Initializes and returns the database connection.
+ * @returns database instance; effects: loads from file or creates new, executes schema DDL, saves to disk.
  */
 export async function getDatabase(): Promise<Database> {
     if (db) {
@@ -44,7 +44,8 @@ export async function getDatabase(): Promise<Database> {
 }
 
 /**
- * Save the database to file.
+ * Persists the in-memory database to disk.
+ * @returns void; effects: exports and writes DB_PATH.
  */
 export function saveDatabase(): void {
     if (db) {
@@ -55,7 +56,8 @@ export function saveDatabase(): void {
 }
 
 /**
- * Close the database connection.
+ * Closes the database connection after saving.
+ * @returns void; effects: saves DB, closes connection, sets global db to null.
  */
 export function closeDatabase(): void {
     if (db) {

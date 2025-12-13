@@ -9,7 +9,13 @@ import { Notification, NotificationType } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
- * Create a new notification
+ * Inserts a notification row.
+ * @param userId recipient user id.
+ * @param type notification type.
+ * @param title notification title.
+ * @param message notification body.
+ * @param eventId optional event reference.
+ * @returns created notification; effects: writes to notifications table.
  */
 export async function createNotification(
     userId: string,
@@ -43,7 +49,7 @@ export async function createNotification(
 }
 
 /**
- * Get all notifications for a user
+ * Returns all notifications for a user ordered by recency.
  */
 export async function getUserNotifications(userId: string): Promise<Notification[]> {
     const db = await getDatabase();
@@ -70,7 +76,7 @@ export async function getUserNotifications(userId: string): Promise<Notification
 }
 
 /**
- * Get unread notifications for a user
+ * Returns unread notifications for a user.
  */
 export async function getUnreadNotifications(userId: string): Promise<Notification[]> {
     const db = await getDatabase();
@@ -97,7 +103,7 @@ export async function getUnreadNotifications(userId: string): Promise<Notificati
 }
 
 /**
- * Get unread notification count for a user
+ * Counts unread notifications for a user.
  */
 export async function getUnreadCount(userId: string): Promise<number> {
     const db = await getDatabase();
@@ -120,7 +126,9 @@ export async function getUnreadCount(userId: string): Promise<number> {
 }
 
 /**
- * Mark notification as read
+ * Marks a notification as read.
+ * @param notificationId notification id.
+ * @returns void; effects: updates is_read in notifications table.
  */
 export async function markAsRead(notificationId: string): Promise<void> {
     const db = await getDatabase();
@@ -134,7 +142,8 @@ export async function markAsRead(notificationId: string): Promise<void> {
 }
 
 /**
- * Mark all notifications as read for a user
+ * Marks all notifications for a user as read.
+ * @returns void; effects: updates is_read for matching rows.
  */
 export async function markAllAsRead(userId: string): Promise<void> {
     const db = await getDatabase();
@@ -148,7 +157,8 @@ export async function markAllAsRead(userId: string): Promise<void> {
 }
 
 /**
- * Delete a notification
+ * Deletes a notification.
+ * @returns void; effects: removes notification row.
  */
 export async function deleteNotification(notificationId: string): Promise<void> {
     const db = await getDatabase();
@@ -162,7 +172,8 @@ export async function deleteNotification(notificationId: string): Promise<void> 
 }
 
 /**
- * Delete all notifications for a user
+ * Deletes all notifications for a user.
+ * @returns void; effects: removes matching notification rows.
  */
 export async function deleteAllUserNotifications(userId: string): Promise<void> {
     const db = await getDatabase();
@@ -176,7 +187,9 @@ export async function deleteAllUserNotifications(userId: string): Promise<void> 
 }
 
 /**
- * Delete old notifications (older than specified days)
+ * Deletes notifications older than the specified age.
+ * @param daysOld threshold in days (default 30).
+ * @returns void; effects: removes old notification rows.
  */
 export async function deleteOldNotifications(daysOld: number = 30): Promise<void> {
     const db = await getDatabase();
@@ -192,7 +205,7 @@ export async function deleteOldNotifications(daysOld: number = 30): Promise<void
 }
 
 /**
- * Get notifications for a specific event
+ * Returns notifications related to an event.
  */
 export async function getEventNotifications(eventId: string): Promise<Notification[]> {
     const db = await getDatabase();

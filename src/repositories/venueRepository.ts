@@ -7,9 +7,12 @@
 import { getDatabase, saveDatabase } from '../database';
 import { Venue, VenueType } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { getFirstRow, getAllRows, getCountValue } from '../utils/dbHelpers';
 
 /**
- * Create a new venue
+ * Inserts a new venue row.
+ * @param venueData requires location, type, and optional capacity (ignored for OPENAIR).
+ * @returns created venue; effects: writes to venues table.
  */
 export async function createVenue(venueData: {
     location: string;
@@ -39,7 +42,8 @@ export async function createVenue(venueData: {
 }
 
 /**
- * Get venue by ID
+ * Loads a venue by id.
+ * @returns venue or null; effects: read-only.
  */
 export async function getVenueById(id: string): Promise<Venue | null> {
     const db = await getDatabase();
@@ -65,7 +69,7 @@ export async function getVenueById(id: string): Promise<Venue | null> {
 }
 
 /**
- * Get all venues
+ * Returns all venues ordered by location.
  */
 export async function getAllVenues(): Promise<Venue[]> {
     const db = await getDatabase();
@@ -85,7 +89,7 @@ export async function getAllVenues(): Promise<Venue[]> {
 }
 
 /**
- * Get venues by type
+ * Returns venues filtered by type.
  */
 export async function getVenuesByType(type: VenueType): Promise<Venue[]> {
     const db = await getDatabase();
@@ -108,7 +112,9 @@ export async function getVenuesByType(type: VenueType): Promise<Venue[]> {
 }
 
 /**
- * Get available venues (venues not booked for a given date range)
+ * Returns venues not booked within a datetime interval.
+ * @param startDatetime start ISO datetime.
+ * @param endDatetime end ISO datetime.
  */
 export async function getAvailableVenues(startDatetime: string, endDatetime: string): Promise<Venue[]> {
     const db = await getDatabase();
@@ -142,7 +148,11 @@ export async function getAvailableVenues(startDatetime: string, endDatetime: str
 }
 
 /**
- * Update venue
+ * Updates venue fields.
+ * @param id venue id.
+ * @param updates partial venue fields; OPENAIR forces capacity NULL.
+ * @returns updated venue; effects: writes to venues table.
+ * @throws Error when venue missing after update.
  */
 export async function updateVenue(
     id: string,
@@ -197,7 +207,9 @@ export async function updateVenue(
 }
 
 /**
- * Delete venue
+ * Deletes a venue if not referenced by events.
+ * @param id venue id.
+ * @returns true when deleted; effects: removes row or throws if in use.
  */
 export async function deleteVenue(id: string): Promise<boolean> {
     const db = await getDatabase();
@@ -219,7 +231,8 @@ export async function deleteVenue(id: string): Promise<boolean> {
 }
 
 /**
- * Check if venue is available (not booked for the given datetime range)
+ * Checks for overlapping non-cancelled events at a venue.
+ * @returns true when no overlaps; effects: read-only.
  */
 export async function isVenueAvailable(venueId: string, startDatetime: string, endDatetime: string): Promise<boolean> {
     const db = await getDatabase();

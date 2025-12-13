@@ -2,6 +2,7 @@
  * Repository Module
  * 
  * Exports all repository functions for database access.
+ * Repositories provide direct SQL operations without business logic.
  */
 
 // User Repository

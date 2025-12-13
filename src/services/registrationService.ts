@@ -4,102 +4,32 @@ import * as eventRepository from '../repositories/eventRepository';
 import * as userRepository from '../repositories/userRepository';
 import * as venueRepository from '../repositories/venueRepository';
 import * as notificationService from './notificationService';
-import { getDatabase, saveDatabase } from '../database';
+import { requireEventPermission } from '../utils/permissionHelpers';
+import { 
+  validateRegistrationEligibility, 
+  executeRegistrationTransaction 
+} from '../utils/registrationHelpers';
 
 /**
- * Register a user for an event
- * Uses database transaction to prevent race conditions (double booking)
+ * Registers a student for an event using a database transaction.
+ * @param eventId requires existing UPCOMING event whose start is in the future and whose venue exists.
+ * @param userId requires existing user with role STUDENT; user must not already be registered.
+ * @returns registration and resulting status (CONFIRMED or WAITLISTED); effects: inserts registration row atomically and may enqueue notification.
+ * @throws Error when validation fails or the transaction cannot be completed.
  */
 export async function registerForEvent(
   eventId: string,
   userId: string
 ): Promise<{ registration: EventRegistration; status: 'CONFIRMED' | 'WAITLISTED' }> {
-  // Validate user exists
-  const user = await userRepository.getUserById(userId);
-  if (!user) {
-    throw new Error('User not found');
-  }
+  // Validate eligibility
+  const [user, event, venue] = await validateRegistrationEligibility(userId, eventId);
 
-  // Only students can register for events
-  if (user.role !== 'STUDENT') {
-    throw new Error('Only students can register for events');
-  }
-
-  // Validate event exists
-  const event = await eventRepository.getEventById(eventId);
-  if (!event) {
-    throw new Error('Event not found');
-  }
-
-  // Check if event is upcoming
-  if (event.status !== 'UPCOMING') {
-    throw new Error('Can only register for upcoming events');
-  }
-
-  // Check if event is in the future
-  const eventStartDate = new Date(event.start_datetime);
-  if (eventStartDate < new Date()) {
-    throw new Error('Cannot register for past events');
-  }
-
-  // Check if user is already registered
-  const existingRegistration = await registrationRepository.isUserRegistered(eventId, userId);
-  if (existingRegistration) {
-    throw new Error('You are already registered for this event');
-  }
-
-  // Get venue to check capacity
-  const venue = await venueRepository.getVenueById(event.venue_id);
-  if (!venue) {
-    throw new Error('Venue not found');
-  }
-
-  // Use transaction to prevent race conditions
-  const db = await getDatabase();
-  
-  let registrationStatus: RegistrationStatus;
-  let registration: EventRegistration;
-
-  try {
-    // Begin transaction
-    db.run('BEGIN IMMEDIATE TRANSACTION');
-
-    // Re-check registration count within transaction (prevents race condition)
-    if (venue.type === 'OPENAIR') {
-      // Open air venues have unlimited capacity
-      registrationStatus = 'CONFIRMED';
-    } else {
-      // Check current confirmed registrations (atomic read within transaction)
-      const result = db.exec(
-        `SELECT COUNT(*) FROM event_registrations WHERE event_id = ? AND status = 'CONFIRMED'`,
-        [eventId]
-      );
-      const confirmedCount = result[0]?.values?.[0]?.[0] as number || 0;
-      const venueCapacity = venue.capacity || 0;
-
-      if (confirmedCount < venueCapacity) {
-        registrationStatus = 'CONFIRMED';
-      } else {
-        registrationStatus = 'WAITLISTED';
-      }
-    }
-
-    // Register user within transaction
-    registration = await registrationRepository.registerUser(eventId, userId, registrationStatus);
-
-    // Commit transaction
-    db.run('COMMIT');
-    saveDatabase();
-
-  } catch (error) {
-    // Rollback on error
-    try {
-      db.run('ROLLBACK');
-    } catch (rollbackError) {
-      console.error('Rollback failed:', rollbackError);
-    }
-    throw error;
-  }
+  // Execute registration within transaction
+  const [registration, registrationStatus] = await executeRegistrationTransaction(
+    eventId,
+    userId,
+    venue
+  );
 
   // Send notification (outside transaction - non-critical)
   try {
@@ -120,7 +50,11 @@ export async function registerForEvent(
 }
 
 /**
- * Unregister a user from an event
+ * Cancels a user's registration for an event.
+ * @param eventId requires existing UPCOMING event.
+ * @param userId requires existing registration for the event.
+ * @returns void when unregistered; effects: deletes registration, may promote next waitlisted user, and emits notifications on best-effort basis.
+ * @throws Error when event or registration is missing.
  */
 export async function unregisterFromEvent(eventId: string, userId: string): Promise<void> {
   // Validate event exists
@@ -175,7 +109,10 @@ export async function unregisterFromEvent(eventId: string, userId: string): Prom
 }
 
 /**
- * Get all registrations for an event
+ * Lists all registrations for an event.
+ * @param eventId requires existing event.
+ * @returns ordered registrations; effects: read-only.
+ * @throws Error when event not found.
  */
 export async function getEventRegistrations(eventId: string): Promise<EventRegistration[]> {
   // Validate event exists
@@ -188,7 +125,10 @@ export async function getEventRegistrations(eventId: string): Promise<EventRegis
 }
 
 /**
- * Get confirmed registrations for an event
+ * Lists confirmed registrations for an event.
+ * @param eventId requires existing event.
+ * @returns confirmed registrations; effects: read-only.
+ * @throws Error when event not found.
  */
 export async function getConfirmedRegistrations(eventId: string): Promise<EventRegistration[]> {
   // Validate event exists
@@ -201,7 +141,10 @@ export async function getConfirmedRegistrations(eventId: string): Promise<EventR
 }
 
 /**
- * Get waitlisted registrations for an event
+ * Lists waitlisted registrations for an event.
+ * @param eventId requires existing event.
+ * @returns waitlisted registrations; effects: read-only.
+ * @throws Error when event not found.
  */
 export async function getWaitlistedRegistrations(eventId: string): Promise<EventRegistration[]> {
   // Validate event exists
@@ -214,7 +157,10 @@ export async function getWaitlistedRegistrations(eventId: string): Promise<Event
 }
 
 /**
- * Get all events a user is registered for
+ * Lists registrations belonging to a user.
+ * @param userId requires existing user.
+ * @returns registrations for the user; effects: read-only.
+ * @throws Error when user not found.
  */
 export async function getUserRegistrations(userId: string): Promise<EventRegistration[]> {
   // Validate user exists
@@ -227,14 +173,16 @@ export async function getUserRegistrations(userId: string): Promise<EventRegistr
 }
 
 /**
- * Check if a user is registered for an event
+ * Checks whether a user is registered for an event.
+ * @returns true if registration exists; effects: read-only.
  */
 export async function isUserRegistered(eventId: string, userId: string): Promise<boolean> {
   return registrationRepository.isUserRegistered(eventId, userId);
 }
 
 /**
- * Get registration details
+ * Retrieves registration details for a user-event pair.
+ * @returns registration or null; effects: read-only.
  */
 export async function getRegistration(
   eventId: string,
@@ -244,7 +192,11 @@ export async function getRegistration(
 }
 
 /**
- * Get registration count by status
+ * Counts registrations for an event, optionally filtered by status.
+ * @param eventId requires existing event.
+ * @param status optional filter.
+ * @returns count; effects: read-only.
+ * @throws Error when event not found.
  */
 export async function getRegistrationCount(
   eventId: string,
@@ -260,7 +212,10 @@ export async function getRegistrationCount(
 }
 
 /**
- * Get waitlist count
+ * Counts waitlisted registrations for an event.
+ * @param eventId requires existing event.
+ * @returns number of waitlisted entries; effects: read-only.
+ * @throws Error when event not found.
  */
 export async function getWaitlistCount(eventId: string): Promise<number> {
   // Validate event exists
@@ -273,7 +228,10 @@ export async function getWaitlistCount(eventId: string): Promise<number> {
 }
 
 /**
- * Get available spots for an event
+ * Computes remaining capacity for an event.
+ * @param eventId requires existing event with venue.
+ * @returns null for unlimited (OPENAIR) or non-negative available count; effects: read-only.
+ * @throws Error when event or venue is missing.
  */
 export async function getAvailableSpots(eventId: string): Promise<number | null> {
   // Validate event exists
@@ -301,7 +259,9 @@ export async function getAvailableSpots(eventId: string): Promise<number | null>
 }
 
 /**
- * Check if event is full
+ * Determines whether an event has reached capacity.
+ * @param eventId requires existing event.
+ * @returns true if capacity is zero, false otherwise (including unlimited venues).
  */
 export async function isEventFull(eventId: string): Promise<boolean> {
   const availableSpots = await getAvailableSpots(eventId);
@@ -315,7 +275,12 @@ export async function isEventFull(eventId: string): Promise<boolean> {
 }
 
 /**
- * Manually promote a user from waitlist (admin/organizer action)
+ * Promotes a waitlisted user to confirmed when capacity allows.
+ * @param eventId requires existing event.
+ * @param userId requires existing waitlisted registration for the event.
+ * @param requestingUserId requires event organizer or ADMIN and available capacity (unless unlimited).
+ * @returns updated registration; effects: updates registration status.
+ * @throws Error when validation fails or capacity unavailable.
  */
 export async function promoteFromWaitlist(
   eventId: string,
@@ -333,10 +298,7 @@ export async function promoteFromWaitlist(
     throw new Error('Event not found');
   }
 
-  // Only organizer of the event or admin can manually promote
-  if (event.organizer_id !== requestingUserId && requestingUser.role !== 'ADMIN') {
-    throw new Error('You do not have permission to promote users from waitlist');
-  }
+  requireEventPermission(requestingUser, event);
 
   // Check if user is on waitlist
   const registration = await registrationRepository.getRegistration(eventId, userId);
@@ -358,7 +320,11 @@ export async function promoteFromWaitlist(
 }
 
 /**
- * Cancel all registrations for an event (when event is cancelled)
+ * Deletes all registrations for an event (e.g., on cancellation).
+ * @param eventId requires existing event.
+ * @param requestingUserId requires event organizer or ADMIN.
+ * @returns void; effects: removes registrations for the event.
+ * @throws Error when event missing or caller unauthorized.
  */
 export async function cancelEventRegistrations(
   eventId: string,
@@ -376,16 +342,16 @@ export async function cancelEventRegistrations(
     throw new Error('User not found');
   }
 
-  // Only organizer of the event or admin can cancel registrations
-  if (event.organizer_id !== requestingUserId && requestingUser.role !== 'ADMIN') {
-    throw new Error('You do not have permission to cancel registrations for this event');
-  }
+  requireEventPermission(requestingUser, event);
 
   await registrationRepository.deleteEventRegistrations(eventId);
 }
 
 /**
- * Get registration statistics for an event
+ * Aggregates registration statistics for an event.
+ * @param eventId requires existing event with venue.
+ * @returns counts of total/confirmed/waitlisted, venue capacity, available spots, and fullness flag.
+ * @throws Error when event or venue missing.
  */
 export async function getEventRegistrationStats(eventId: string): Promise<{
   total: number;
@@ -425,7 +391,8 @@ export async function getEventRegistrationStats(eventId: string): Promise<{
 }
 
 /**
- * Get overall registration statistics
+ * Aggregates registration totals across all events.
+ * @returns totals for confirmed and waitlisted registrations; effects: reads registrations for every event.
  */
 export async function getOverallRegistrationStats(): Promise<{
   totalRegistrations: number;

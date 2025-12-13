@@ -24,7 +24,8 @@ let schedulerInterval: ReturnType<typeof setInterval> | null = null;
 const SCHEDULER_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
 /**
- * Check and send reminders for upcoming events
+ * Scans upcoming events and sends due reminders.
+ * @returns count of events checked and reminders sent; effects: reads events, writes notifications, updates in-memory sentReminders.
  */
 export async function checkAndSendReminders(): Promise<{
     checked: number;
@@ -77,8 +78,9 @@ export async function checkAndSendReminders(): Promise<{
 }
 
 /**
- * Start the reminder scheduler
- * Runs every 15 minutes by default
+ * Starts periodic reminder checks.
+ * @param intervalMs optional interval in milliseconds (default 15 minutes).
+ * @returns void; effects: schedules recurring timer, triggers immediate check once.
  */
 export function startScheduler(intervalMs: number = SCHEDULER_INTERVAL_MS): void {
     if (schedulerInterval) {
@@ -112,7 +114,7 @@ export function startScheduler(intervalMs: number = SCHEDULER_INTERVAL_MS): void
 }
 
 /**
- * Stop the reminder scheduler
+ * Stops the periodic reminder checks.
  */
 export function stopScheduler(): void {
     if (schedulerInterval) {
@@ -123,15 +125,14 @@ export function stopScheduler(): void {
 }
 
 /**
- * Check if scheduler is running
+ * Indicates whether the scheduler is currently running.
  */
 export function isSchedulerRunning(): boolean {
     return schedulerInterval !== null;
 }
 
 /**
- * Clear sent reminders cache
- * Useful for testing or daily reset
+ * Clears the sent-reminders cache (useful for tests or resets).
  */
 export function clearReminderCache(): void {
     sentReminders.clear();
@@ -139,14 +140,14 @@ export function clearReminderCache(): void {
 }
 
 /**
- * Get sent reminders count (for monitoring)
+ * Returns the count of reminder keys tracked in memory.
  */
 export function getSentRemindersCount(): number {
     return sentReminders.size;
 }
 
 /**
- * Manually trigger a reminder check (for testing)
+ * Runs a one-off reminder check without altering the interval.
  */
 export async function triggerManualCheck(): Promise<{
     checked: number;

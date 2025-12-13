@@ -7,9 +7,12 @@
 import { getDatabase, saveDatabase } from '../database';
 import { User, Role } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { getFirstRow, getAllRows, getCountValue } from '../utils/dbHelpers';
 
 /**
- * Create a new user
+ * Inserts a new user row.
+ * @param userData requires name, email, password_hash, and role.
+ * @returns created user with generated id; effects: writes to users table.
  */
 export async function createUser(userData: {
     name: string;
@@ -37,7 +40,8 @@ export async function createUser(userData: {
 }
 
 /**
- * Get user by ID
+ * Loads a user by id.
+ * @returns user or null; effects: read-only.
  */
 export async function getUserById(id: string): Promise<User | null> {
     const db = await getDatabase();
@@ -47,11 +51,7 @@ export async function getUserById(id: string): Promise<User | null> {
         [id]
     );
 
-    if (result.length === 0 || !result[0] || !result[0].values || result[0].values.length === 0) {
-        return null;
-    }
-
-    const row = result[0].values[0];
+    const row = getFirstRow(result);
     if (!row) return null;
     
     return {
@@ -65,7 +65,8 @@ export async function getUserById(id: string): Promise<User | null> {
 }
 
 /**
- * Get user by email
+ * Loads a user by email.
+ * @returns user or null; effects: read-only.
  */
 export async function getUserByEmail(email: string): Promise<User | null> {
     const db = await getDatabase();
@@ -75,11 +76,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
         [email]
     );
 
-    if (result.length === 0 || !result[0] || !result[0].values || result[0].values.length === 0) {
-        return null;
-    }
-
-    const row = result[0].values[0];
+    const row = getFirstRow(result);
     if (!row) return null;
     
     return {
@@ -93,18 +90,14 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 }
 
 /**
- * Get all users
+ * Returns all users ordered by created_at descending.
  */
 export async function getAllUsers(): Promise<User[]> {
     const db = await getDatabase();
     
     const result = db.exec(`SELECT * FROM users ORDER BY created_at DESC`);
 
-    if (result.length === 0 || !result[0] || !result[0].values) {
-        return [];
-    }
-
-    return result[0].values.map(row => ({
+    return getAllRows(result).map(row => ({
         id: row[0] as string,
         name: row[1] as string,
         email: row[2] as string,
@@ -115,7 +108,7 @@ export async function getAllUsers(): Promise<User[]> {
 }
 
 /**
- * Get users by role
+ * Returns users filtered by role.
  */
 export async function getUsersByRole(role: Role): Promise<User[]> {
     const db = await getDatabase();
@@ -125,11 +118,7 @@ export async function getUsersByRole(role: Role): Promise<User[]> {
         [role]
     );
 
-    if (result.length === 0 || !result[0] || !result[0].values) {
-        return [];
-    }
-
-    return result[0].values.map(row => ({
+    return getAllRows(result).map(row => ({
         id: row[0] as string,
         name: row[1] as string,
         email: row[2] as string,
@@ -140,7 +129,11 @@ export async function getUsersByRole(role: Role): Promise<User[]> {
 }
 
 /**
- * Update user
+ * Updates specified fields on a user.
+ * @param id user id.
+ * @param updates partial user fields.
+ * @returns updated user; effects: writes to users table.
+ * @throws Error when user missing after update.
  */
 export async function updateUser(
     id: string,
@@ -194,7 +187,8 @@ export async function updateUser(
 }
 
 /**
- * Delete user
+ * Deletes a user by id.
+ * @returns true when deletion executed; effects: removes user row.
  */
 export async function deleteUser(id: string): Promise<boolean> {
     const db = await getDatabase();
@@ -206,7 +200,8 @@ export async function deleteUser(id: string): Promise<boolean> {
 }
 
 /**
- * Check if email exists
+ * Checks whether an email is already in use.
+ * @returns true if found; effects: read-only.
  */
 export async function emailExists(email: string): Promise<boolean> {
     const user = await getUserByEmail(email);
@@ -214,7 +209,7 @@ export async function emailExists(email: string): Promise<boolean> {
 }
 
 /**
- * Get user count by role
+ * Counts users by role.
  */
 export async function getUserCountByRole(role: Role): Promise<number> {
     const db = await getDatabase();
@@ -224,14 +219,5 @@ export async function getUserCountByRole(role: Role): Promise<number> {
         [role]
     );
 
-    if (!result[0] || !result[0].values || result[0].values.length === 0) {
-        return 0;
-    }
-
-    const row = result[0].values[0];
-    if (!row) {
-        return 0;
-    }
-
-    return row[0] as number;
+    return getCountValue(result);
 }

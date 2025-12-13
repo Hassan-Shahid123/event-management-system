@@ -1,5 +1,6 @@
 import { Venue, VenueType } from '../types';
 import * as venueRepository from '../repositories/venueRepository';
+import { validateDatetimeRange, isValidVenueType } from '../utils/validation';
 
 export interface CreateVenueInput {
   location: string;
@@ -14,7 +15,10 @@ export interface UpdateVenueInput {
 }
 
 /**
- * Create a new venue
+ * Creates a new venue record.
+ * @param input requires non-empty location, valid venue type; capacity must be positive for non-OPENAIR and absent for OPENAIR.
+ * @returns created venue; effects: inserts venue row.
+ * @throws Error when validation fails.
  */
 export async function createVenue(input: CreateVenueInput): Promise<Venue> {
   // Validate input
@@ -43,21 +47,26 @@ export async function createVenue(input: CreateVenueInput): Promise<Venue> {
 }
 
 /**
- * Get venue by ID
+ * Retrieves a venue by id.
+ * @returns venue or null; effects: read-only.
  */
 export async function getVenueById(venueId: string): Promise<Venue | null> {
   return venueRepository.getVenueById(venueId);
 }
 
 /**
- * Get all venues
+ * Lists all venues.
+ * @returns venues ordered by repository query; effects: read-only.
  */
 export async function getAllVenues(): Promise<Venue[]> {
   return venueRepository.getAllVenues();
 }
 
 /**
- * Get venues by type
+ * Lists venues by type.
+ * @param type requires valid venue type.
+ * @returns venues of the given type; effects: read-only.
+ * @throws Error when type invalid.
  */
 export async function getVenuesByType(type: VenueType): Promise<Venue[]> {
   if (!isValidVenueType(type)) {
@@ -68,26 +77,25 @@ export async function getVenuesByType(type: VenueType): Promise<Venue[]> {
 }
 
 /**
- * Get available venues for a datetime range
+ * Lists venues available within a datetime window.
+ * @param startDatetime requires valid ISO datetime.
+ * @param endDatetime requires valid ISO datetime after start.
+ * @returns venues not booked in the interval; effects: read-only.
+ * @throws Error when datetimes invalid or order incorrect.
  */
 export async function getAvailableVenues(startDatetime: string, endDatetime: string): Promise<Venue[]> {
   // Validate datetimes
-  const start = new Date(startDatetime);
-  const end = new Date(endDatetime);
-
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-    throw new Error('Invalid datetime format');
-  }
-
-  if (end <= start) {
-    throw new Error('End datetime must be after start datetime');
-  }
+  validateDatetimeRange(startDatetime, endDatetime);
 
   return venueRepository.getAvailableVenues(startDatetime, endDatetime);
 }
 
 /**
- * Update venue
+ * Updates venue fields.
+ * @param venueId requires existing venue.
+ * @param input optional updates; requires non-empty location, valid type, and capacity consistent with resulting type (positive for non-OPENAIR, absent for OPENAIR).
+ * @returns updated venue; effects: persists changes.
+ * @throws Error when validation fails or venue missing.
  */
 export async function updateVenue(venueId: string, input: UpdateVenueInput): Promise<Venue> {
   // Validate input
@@ -128,7 +136,10 @@ export async function updateVenue(venueId: string, input: UpdateVenueInput): Pro
 }
 
 /**
- * Delete venue
+ * Deletes a venue if it exists.
+ * @param venueId requires existing venue; may throw if repository enforces usage constraints.
+ * @returns void; effects: removes venue row.
+ * @throws Error when venue missing.
  */
 export async function deleteVenue(venueId: string): Promise<void> {
   const venue = await venueRepository.getVenueById(venueId);
@@ -143,7 +154,12 @@ export async function deleteVenue(venueId: string): Promise<void> {
 }
 
 /**
- * Check if venue is available for a datetime range
+ * Checks whether a venue is free for a datetime window.
+ * @param venueId requires existing venue.
+ * @param startDatetime requires valid ISO datetime.
+ * @param endDatetime requires valid ISO datetime after start.
+ * @returns true when no overlapping non-cancelled events; effects: read-only.
+ * @throws Error when validation fails or venue missing.
  */
 export async function isVenueAvailable(
   venueId: string,
@@ -157,43 +173,28 @@ export async function isVenueAvailable(
   }
 
   // Validate datetimes
-  const start = new Date(startDatetime);
-  const end = new Date(endDatetime);
-
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-    throw new Error('Invalid datetime format');
-  }
-
-  if (end <= start) {
-    throw new Error('End datetime must be after start datetime');
-  }
+  validateDatetimeRange(startDatetime, endDatetime);
 
   return venueRepository.isVenueAvailable(venueId, startDatetime, endDatetime);
 }
 
 /**
- * Get venue capacity (returns null for open air venues)
+ * Returns capacity for a venue (null when unlimited for OPENAIR).
  */
 export function getVenueCapacity(venue: Venue): number | null {
   return venue.type === 'OPENAIR' ? null : venue.capacity ?? null;
 }
 
 /**
- * Check if venue has capacity limit
+ * Indicates whether a venue enforces a capacity limit.
  */
 export function hasCapacityLimit(venue: Venue): boolean {
   return venue.type !== 'OPENAIR';
 }
 
 /**
- * Validate venue type
- */
-function isValidVenueType(type: string): type is VenueType {
-  return ['LAB', 'EXAM_HALL', 'LECTURE_HALL', 'SMART_CLASSROOM', 'CLASSROOM', 'MEETING_HALL', 'OPENAIR', 'SEMINAR', 'AUDITORIUM', 'CAFE'].includes(type);
-}
-
-/**
- * Get venue statistics
+ * Aggregates venue counts by type.
+ * @returns total venues and counts per type; effects: read-only.
  */
 export async function getVenueStats(): Promise<{
   total: number;

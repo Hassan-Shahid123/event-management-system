@@ -1,3 +1,10 @@
+/**
+ * Services Module
+ * 
+ * Exports all service layers providing business logic and coordination.
+ * Services enforce validation, permissions, and call repositories.
+ */
+
 // Export all services
 export * as authService from './authService';
 export * as userService from './userService';
