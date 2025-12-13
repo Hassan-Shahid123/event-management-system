@@ -38,12 +38,12 @@ npm run build
 ## Development
 
 We're building this project step by step:
-- ✅ Database schema and types defined
-- ✅ Basic project structure cleaned up
-- 🔲 Repository layer (CRUD operations)
-- 🔲 Service layer (business logic)
-- 🔲 API endpoints
-- 🔲 Testing
+-  Database schema and types defined
+-  Basic project structure cleaned up
+-  Repository layer (CRUD operations)
+-  Service layer (business logic)
+-  API endpoints
+-  Testing
 
 ## Technology Stack
 
