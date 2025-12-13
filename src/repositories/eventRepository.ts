@@ -9,24 +9,43 @@ import { Event, EventStatus } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
+ * Map database row to Event object
+ */
+function mapRowToEvent(row: any[]): Event {
+    return {
+        id: row[0] as string,
+        title: row[1] as string,
+        description: row[2] as string,
+        start_date: row[3] as string,
+        end_date: row[4] as string,
+        venue_id: row[5] as string,
+        organizer_id: row[6] as string,
+        status: row[7] as EventStatus,
+        created_at: row[8] as string
+    };
+}
+
+/**
  * Create a new event
  */
 export async function createEvent(eventData: {
     title: string;
     description: string;
-    date_time: string;
+    start_date: string;
+    end_date: string;
     venue_id: string;
     organizer_id: string;
+    status?: EventStatus;
 }): Promise<Event> {
     const db = await getDatabase();
     const id = uuidv4();
     const created_at = new Date().toISOString();
-    const status: EventStatus = 'PENDING';
+    const status: EventStatus = eventData.status || 'UPCOMING';
 
     db.run(
-        `INSERT INTO events (id, title, description, date_time, venue_id, organizer_id, status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, eventData.title, eventData.description, eventData.date_time, 
+        `INSERT INTO events (id, title, description, start_date, end_date, venue_id, organizer_id, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, eventData.title, eventData.description, eventData.start_date, eventData.end_date,
          eventData.venue_id, eventData.organizer_id, status, created_at]
     );
 
@@ -34,7 +53,12 @@ export async function createEvent(eventData: {
 
     return {
         id,
-        ...eventData,
+        title: eventData.title,
+        description: eventData.description,
+        start_date: eventData.start_date,
+        end_date: eventData.end_date,
+        venue_id: eventData.venue_id,
+        organizer_id: eventData.organizer_id,
         status,
         created_at
     };
@@ -58,16 +82,7 @@ export async function getEventById(id: string): Promise<Event | null> {
     const row = result[0].values[0];
     if (!row) return null;
     
-    return {
-        id: row[0] as string,
-        title: row[1] as string,
-        description: row[2] as string,
-        date_time: row[3] as string,
-        venue_id: row[4] as string,
-        organizer_id: row[5] as string,
-        status: row[6] as EventStatus,
-        created_at: row[7] as string
-    };
+    return mapRowToEvent(row);
 }
 
 /**
@@ -76,22 +91,13 @@ export async function getEventById(id: string): Promise<Event | null> {
 export async function getAllEvents(): Promise<Event[]> {
     const db = await getDatabase();
     
-    const result = db.exec(`SELECT * FROM events ORDER BY date_time DESC`);
+    const result = db.exec(`SELECT * FROM events ORDER BY start_date DESC`);
 
     if (result.length === 0 || !result[0] || !result[0].values) {
         return [];
     }
 
-    return result[0].values.map(row => ({
-        id: row[0] as string,
-        title: row[1] as string,
-        description: row[2] as string,
-        date_time: row[3] as string,
-        venue_id: row[4] as string,
-        organizer_id: row[5] as string,
-        status: row[6] as EventStatus,
-        created_at: row[7] as string
-    }));
+    return result[0].values.map(mapRowToEvent);
 }
 
 /**
@@ -101,7 +107,7 @@ export async function getEventsByOrganizer(organizerId: string): Promise<Event[]
     const db = await getDatabase();
     
     const result = db.exec(
-        `SELECT * FROM events WHERE organizer_id = ? ORDER BY date_time DESC`,
+        `SELECT * FROM events WHERE organizer_id = ? ORDER BY start_date DESC`,
         [organizerId]
     );
 
@@ -109,16 +115,7 @@ export async function getEventsByOrganizer(organizerId: string): Promise<Event[]
         return [];
     }
 
-    return result[0].values.map(row => ({
-        id: row[0] as string,
-        title: row[1] as string,
-        description: row[2] as string,
-        date_time: row[3] as string,
-        venue_id: row[4] as string,
-        organizer_id: row[5] as string,
-        status: row[6] as EventStatus,
-        created_at: row[7] as string
-    }));
+    return result[0].values.map(mapRowToEvent);
 }
 
 /**
@@ -128,7 +125,7 @@ export async function getEventsByStatus(status: EventStatus): Promise<Event[]> {
     const db = await getDatabase();
     
     const result = db.exec(
-        `SELECT * FROM events WHERE status = ? ORDER BY date_time DESC`,
+        `SELECT * FROM events WHERE status = ? ORDER BY start_date DESC`,
         [status]
     );
 
@@ -136,16 +133,7 @@ export async function getEventsByStatus(status: EventStatus): Promise<Event[]> {
         return [];
     }
 
-    return result[0].values.map(row => ({
-        id: row[0] as string,
-        title: row[1] as string,
-        description: row[2] as string,
-        date_time: row[3] as string,
-        venue_id: row[4] as string,
-        organizer_id: row[5] as string,
-        status: row[6] as EventStatus,
-        created_at: row[7] as string
-    }));
+    return result[0].values.map(mapRowToEvent);
 }
 
 /**
@@ -155,7 +143,7 @@ export async function getEventsByVenue(venueId: string): Promise<Event[]> {
     const db = await getDatabase();
     
     const result = db.exec(
-        `SELECT * FROM events WHERE venue_id = ? ORDER BY date_time DESC`,
+        `SELECT * FROM events WHERE venue_id = ? ORDER BY start_date DESC`,
         [venueId]
     );
 
@@ -163,20 +151,11 @@ export async function getEventsByVenue(venueId: string): Promise<Event[]> {
         return [];
     }
 
-    return result[0].values.map(row => ({
-        id: row[0] as string,
-        title: row[1] as string,
-        description: row[2] as string,
-        date_time: row[3] as string,
-        venue_id: row[4] as string,
-        organizer_id: row[5] as string,
-        status: row[6] as EventStatus,
-        created_at: row[7] as string
-    }));
+    return result[0].values.map(mapRowToEvent);
 }
 
 /**
- * Get upcoming events (future events that are verified)
+ * Get upcoming events
  */
 export async function getUpcomingEvents(): Promise<Event[]> {
     const db = await getDatabase();
@@ -184,8 +163,8 @@ export async function getUpcomingEvents(): Promise<Event[]> {
     
     const result = db.exec(
         `SELECT * FROM events 
-         WHERE status = 'VERIFIED' AND date_time > ?
-         ORDER BY date_time ASC`,
+         WHERE start_date > ?
+         ORDER BY start_date ASC`,
         [now]
     );
 
@@ -193,16 +172,7 @@ export async function getUpcomingEvents(): Promise<Event[]> {
         return [];
     }
 
-    return result[0].values.map(row => ({
-        id: row[0] as string,
-        title: row[1] as string,
-        description: row[2] as string,
-        date_time: row[3] as string,
-        venue_id: row[4] as string,
-        organizer_id: row[5] as string,
-        status: row[6] as EventStatus,
-        created_at: row[7] as string
-    }));
+    return result[0].values.map(mapRowToEvent);
 }
 
 /**
@@ -210,8 +180,8 @@ export async function getUpcomingEvents(): Promise<Event[]> {
  */
 export async function updateEvent(
     id: string,
-    updates: Partial<Pick<Event, 'title' | 'description' | 'date_time' | 'venue_id' | 'status'>>
-): Promise<boolean> {
+    updates: Partial<Pick<Event, 'title' | 'description' | 'start_date' | 'end_date' | 'venue_id' | 'status'>>
+): Promise<Event> {
     const db = await getDatabase();
     
     const fields: string[] = [];
@@ -225,9 +195,13 @@ export async function updateEvent(
         fields.push('description = ?');
         values.push(updates.description);
     }
-    if (updates.date_time !== undefined) {
-        fields.push('date_time = ?');
-        values.push(updates.date_time);
+    if (updates.start_date !== undefined) {
+        fields.push('start_date = ?');
+        values.push(updates.start_date);
+    }
+    if (updates.end_date !== undefined) {
+        fields.push('end_date = ?');
+        values.push(updates.end_date);
     }
     if (updates.venue_id !== undefined) {
         fields.push('venue_id = ?');
@@ -239,7 +213,11 @@ export async function updateEvent(
     }
 
     if (fields.length === 0) {
-        return false;
+        const event = await getEventById(id);
+        if (!event) {
+            throw new Error('Event not found');
+        }
+        return event;
     }
 
     values.push(id);
@@ -250,26 +228,30 @@ export async function updateEvent(
     );
 
     saveDatabase();
-    return true;
+    
+    const updated = await getEventById(id);
+    if (!updated) {
+        throw new Error('Event not found after update');
+    }
+    
+    return updated;
 }
 
 /**
  * Delete event
  */
-export async function deleteEvent(id: string): Promise<boolean> {
+export async function deleteEvent(id: string): Promise<void> {
     const db = await getDatabase();
     
     // Note: Registrations will be automatically deleted due to CASCADE
     db.run(`DELETE FROM events WHERE id = ?`, [id]);
     saveDatabase();
-    
-    return true;
 }
 
 /**
  * Change event status
  */
-export async function changeEventStatus(id: string, status: EventStatus): Promise<boolean> {
+export async function changeEventStatus(id: string, status: EventStatus): Promise<Event> {
     return updateEvent(id, { status });
 }
 
@@ -281,23 +263,14 @@ export async function searchEventsByTitle(searchTerm: string): Promise<Event[]> 
     
     const result = db.exec(
         `SELECT * FROM events 
-         WHERE title LIKE ? OR description LIKE ?
-         ORDER BY date_time DESC`,
-        [`%${searchTerm}%`, `%${searchTerm}%`]
+         WHERE title LIKE ? 
+         ORDER BY start_date DESC`,
+        [`%${searchTerm}%`]
     );
 
     if (result.length === 0 || !result[0] || !result[0].values) {
         return [];
     }
 
-    return result[0].values.map(row => ({
-        id: row[0] as string,
-        title: row[1] as string,
-        description: row[2] as string,
-        date_time: row[3] as string,
-        venue_id: row[4] as string,
-        organizer_id: row[5] as string,
-        status: row[6] as EventStatus,
-        created_at: row[7] as string
-    }));
+    return result[0].values.map(mapRowToEvent);
 }

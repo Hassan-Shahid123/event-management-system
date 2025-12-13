@@ -145,7 +145,7 @@ export async function getUsersByRole(role: Role): Promise<User[]> {
 export async function updateUser(
     id: string,
     updates: Partial<Pick<User, 'name' | 'email' | 'password_hash' | 'role'>>
-): Promise<boolean> {
+): Promise<User> {
     const db = await getDatabase();
     
     const fields: string[] = [];
@@ -169,7 +169,11 @@ export async function updateUser(
     }
 
     if (fields.length === 0) {
-        return false;
+        const user = await getUserById(id);
+        if (!user) {
+            throw new Error('User not found');
+        }
+        return user;
     }
 
     values.push(id);
@@ -180,7 +184,13 @@ export async function updateUser(
     );
 
     saveDatabase();
-    return true;
+    
+    const updated = await getUserById(id);
+    if (!updated) {
+        throw new Error('User not found after update');
+    }
+    
+    return updated;
 }
 
 /**
@@ -206,26 +216,22 @@ export async function emailExists(email: string): Promise<boolean> {
 /**
  * Get user count by role
  */
-export async function getUserCountByRole(): Promise<Record<Role, number>> {
+export async function getUserCountByRole(role: Role): Promise<number> {
     const db = await getDatabase();
     
     const result = db.exec(
-        `SELECT role, COUNT(*) as count FROM users GROUP BY role`
+        `SELECT COUNT(*) as count FROM users WHERE role = ?`,
+        [role]
     );
 
-    const counts: Record<Role, number> = {
-        STUDENT: 0,
-        ORGANIZER: 0,
-        ADMIN: 0
-    };
-
-    if (result.length > 0 && result[0] && result[0].values) {
-        result[0].values.forEach(row => {
-            const role = row[0] as Role;
-            const count = row[1] as number;
-            counts[role] = count;
-        });
+    if (!result[0] || !result[0].values || result[0].values.length === 0) {
+        return 0;
     }
 
-    return counts;
+    const row = result[0].values[0];
+    if (!row) {
+        return 0;
+    }
+
+    return row[0] as number;
 }

@@ -108,16 +108,25 @@ export async function getVenuesByType(type: VenueType): Promise<Venue[]> {
 }
 
 /**
- * Get available venues (with capacity for at least minCapacity people)
+ * Get available venues (venues not booked for a given date range)
  */
-export async function getAvailableVenues(minCapacity: number): Promise<Venue[]> {
+export async function getAvailableVenues(startDate: string, endDate: string): Promise<Venue[]> {
     const db = await getDatabase();
     
+    // Get venues that don't have any events in the given date range
     const result = db.exec(
-        `SELECT * FROM venues 
-         WHERE capacity >= ? OR capacity IS NULL 
-         ORDER BY capacity DESC`,
-        [minCapacity]
+        `SELECT v.* FROM venues v
+         WHERE v.id NOT IN (
+             SELECT e.venue_id FROM events e
+             WHERE e.status != 'CANCELLED'
+             AND (
+                 (e.start_date <= ? AND e.end_date >= ?)
+                 OR (e.start_date <= ? AND e.end_date >= ?)
+                 OR (e.start_date >= ? AND e.end_date <= ?)
+             )
+         )
+         ORDER BY v.type, v.location`,
+        [startDate, startDate, endDate, endDate, startDate, endDate]
     );
 
     if (result.length === 0 || !result[0] || !result[0].values) {
@@ -138,7 +147,7 @@ export async function getAvailableVenues(minCapacity: number): Promise<Venue[]> 
 export async function updateVenue(
     id: string,
     updates: Partial<Pick<Venue, 'location' | 'type' | 'capacity'>>
-): Promise<boolean> {
+): Promise<Venue> {
     const db = await getDatabase();
     
     const fields: string[] = [];
@@ -163,7 +172,11 @@ export async function updateVenue(
     }
 
     if (fields.length === 0) {
-        return false;
+        const venue = await getVenueById(id);
+        if (!venue) {
+            throw new Error('Venue not found');
+        }
+        return venue;
     }
 
     values.push(id);
@@ -174,7 +187,13 @@ export async function updateVenue(
     );
 
     saveDatabase();
-    return true;
+    
+    const updated = await getVenueById(id);
+    if (!updated) {
+        throw new Error('Venue not found after update');
+    }
+    
+    return updated;
 }
 
 /**
@@ -200,19 +219,32 @@ export async function deleteVenue(id: string): Promise<boolean> {
 }
 
 /**
- * Check if venue is available (not at capacity for a specific event)
+ * Check if venue is available (not booked for the given date range)
  */
-export async function isVenueAvailable(venueId: string, registrationCount: number): Promise<boolean> {
-    const venue = await getVenueById(venueId);
+export async function isVenueAvailable(venueId: string, startDate: string, endDate: string): Promise<boolean> {
+    const db = await getDatabase();
     
-    if (!venue) {
-        return false;
-    }
+    const result = db.exec(
+        `SELECT COUNT(*) as count FROM events
+         WHERE venue_id = ? 
+         AND status != 'CANCELLED'
+         AND (
+             (start_date <= ? AND end_date >= ?)
+             OR (start_date <= ? AND end_date >= ?)
+             OR (start_date >= ? AND end_date <= ?)
+         )`,
+        [venueId, startDate, startDate, endDate, endDate, startDate, endDate]
+    );
 
-    // OPENAIR venues have unlimited capacity
-    if (venue.capacity === undefined || venue.capacity === null) {
+    if (!result[0] || !result[0].values || result[0].values.length === 0) {
         return true;
     }
 
-    return registrationCount < venue.capacity;
+    const row = result[0].values[0];
+    if (!row) {
+        return true;
+    }
+
+    const count = row[0] as number;
+    return count === 0;
 }

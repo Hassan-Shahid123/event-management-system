@@ -16,16 +16,22 @@
  * Ordering of privileges: STUDENT < ORGANIZER < ADMIN
  */
 export type Role = 'STUDENT' | 'ORGANIZER' | 'ADMIN';
+export type UserRole = Role; // Alias for compatibility
 
 /**
  * EventStatus represents the lifecycle state of an event.
  */
-export type EventStatus = 'PENDING' | 'VERIFIED' | 'CANCELLED';
+export type EventStatus = 'UPCOMING' | 'INPROGRESS' | 'COMPLETED' | 'CANCELLED';
 
 /**
  * VenueType represents the type of venue available for events.
  */
-export type VenueType = 'SEMINAR_HALL' | 'OPENAIR' | 'AUDITORIUM' | 'LECTURE_HALL' | 'CLASS_ROOM' | 'LAB';
+export type VenueType = 'INDOOR' | 'OPENAIR';
+
+/**
+ * RegistrationStatus represents the status of an event registration.
+ */
+export type RegistrationStatus = 'CONFIRMED' | 'WAITLISTED';
 
 // ============================================================================
 // DATABASE MODEL INTERFACES
@@ -60,7 +66,8 @@ export interface Event {
     id: string;
     title: string;
     description: string;
-    date_time: string;  // ISO 8601 format
+    start_date: string;  // ISO 8601 format
+    end_date: string;    // ISO 8601 format
     venue_id: string;
     organizer_id: string;
     status: EventStatus;
@@ -75,7 +82,7 @@ export interface EventRegistration {
     id: string;
     event_id: string;
     user_id: string;
-    is_waitlisted: boolean;
+    status: RegistrationStatus;
     registered_at: string;
 }
 

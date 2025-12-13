@@ -13,4 +13,7 @@ export * from './database';
 // Export repositories
 export * from './repositories';
 
+// Export services
+export * from './services';
+
 console.log('CampusConnect Event Management System - Ready!');

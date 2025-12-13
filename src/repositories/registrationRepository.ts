@@ -5,7 +5,7 @@
  */
 
 import { getDatabase, saveDatabase } from '../database';
-import { EventRegistration } from '../types';
+import { EventRegistration, RegistrationStatus } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -14,16 +14,16 @@ import { v4 as uuidv4 } from 'uuid';
 export async function registerUser(
     eventId: string,
     userId: string,
-    isWaitlisted: boolean = false
+    status: RegistrationStatus = 'CONFIRMED'
 ): Promise<EventRegistration> {
     const db = await getDatabase();
     const id = uuidv4();
     const registered_at = new Date().toISOString();
 
     db.run(
-        `INSERT INTO event_registrations (id, event_id, user_id, is_waitlisted, registered_at)
+        `INSERT INTO event_registrations (id, event_id, user_id, status, registered_at)
          VALUES (?, ?, ?, ?, ?)`,
-        [id, eventId, userId, isWaitlisted ? 1 : 0, registered_at]
+        [id, eventId, userId, status, registered_at]
     );
 
     saveDatabase();
@@ -32,7 +32,7 @@ export async function registerUser(
         id,
         event_id: eventId,
         user_id: userId,
-        is_waitlisted: isWaitlisted,
+        status,
         registered_at
     };
 }
@@ -71,7 +71,7 @@ export async function getEventRegistrations(eventId: string): Promise<EventRegis
         id: row[0] as string,
         event_id: row[1] as string,
         user_id: row[2] as string,
-        is_waitlisted: (row[3] as number) === 1,
+        status: row[3] as RegistrationStatus,
         registered_at: row[4] as string
     }));
 }
@@ -84,7 +84,7 @@ export async function getConfirmedRegistrations(eventId: string): Promise<EventR
     
     const result = db.exec(
         `SELECT * FROM event_registrations 
-         WHERE event_id = ? AND is_waitlisted = 0 
+         WHERE event_id = ? AND status = 'CONFIRMED' 
          ORDER BY registered_at ASC`,
         [eventId]
     );
@@ -97,7 +97,7 @@ export async function getConfirmedRegistrations(eventId: string): Promise<EventR
         id: row[0] as string,
         event_id: row[1] as string,
         user_id: row[2] as string,
-        is_waitlisted: false,
+        status: 'CONFIRMED' as RegistrationStatus,
         registered_at: row[4] as string
     }));
 }
@@ -110,7 +110,7 @@ export async function getWaitlistedRegistrations(eventId: string): Promise<Event
     
     const result = db.exec(
         `SELECT * FROM event_registrations 
-         WHERE event_id = ? AND is_waitlisted = 1 
+         WHERE event_id = ? AND status = 'WAITLISTED' 
          ORDER BY registered_at ASC`,
         [eventId]
     );
@@ -123,7 +123,7 @@ export async function getWaitlistedRegistrations(eventId: string): Promise<Event
         id: row[0] as string,
         event_id: row[1] as string,
         user_id: row[2] as string,
-        is_waitlisted: true,
+        status: 'WAITLISTED' as RegistrationStatus,
         registered_at: row[4] as string
     }));
 }
@@ -147,7 +147,7 @@ export async function getUserRegistrations(userId: string): Promise<EventRegistr
         id: row[0] as string,
         event_id: row[1] as string,
         user_id: row[2] as string,
-        is_waitlisted: (row[3] as number) === 1,
+        status: row[3] as RegistrationStatus,
         registered_at: row[4] as string
     }));
 }
@@ -188,7 +188,7 @@ export async function getRegistration(eventId: string, userId: string): Promise<
         id: row[0] as string,
         event_id: row[1] as string,
         user_id: row[2] as string,
-        is_waitlisted: (row[3] as number) === 1,
+        status: row[3] as RegistrationStatus,
         registered_at: row[4] as string
     };
 }
@@ -196,30 +196,50 @@ export async function getRegistration(eventId: string, userId: string): Promise<
 /**
  * Move a user from waitlist to confirmed registration
  */
-export async function promoteFromWaitlist(eventId: string, userId: string): Promise<boolean> {
+export async function promoteFromWaitlist(eventId: string, userId: string): Promise<EventRegistration> {
     const db = await getDatabase();
     
     db.run(
-        `UPDATE event_registrations SET is_waitlisted = 0 WHERE event_id = ? AND user_id = ?`,
+        `UPDATE event_registrations SET status = 'CONFIRMED' WHERE event_id = ? AND user_id = ?`,
         [eventId, userId]
     );
 
     saveDatabase();
-    return true;
+    
+    const registration = await getRegistration(eventId, userId);
+    if (!registration) {
+        throw new Error('Registration not found after promotion');
+    }
+    
+    return registration;
 }
 
 /**
- * Get registration count for an event (confirmed only)
+ * Get registration count for an event (optionally filter by status)
  */
-export async function getRegistrationCount(eventId: string): Promise<number> {
+export async function getRegistrationCount(eventId: string, status?: RegistrationStatus): Promise<number> {
     const db = await getDatabase();
     
-    const result = db.exec(
-        `SELECT COUNT(*) FROM event_registrations WHERE event_id = ? AND is_waitlisted = 0`,
-        [eventId]
-    );
+    let query = `SELECT COUNT(*) FROM event_registrations WHERE event_id = ?`;
+    const params: any[] = [eventId];
+    
+    if (status) {
+        query += ` AND status = ?`;
+        params.push(status);
+    }
+    
+    const result = db.exec(query, params);
 
-    return result.length > 0 && result[0] && result[0].values && result[0].values[0] ? (result[0].values[0][0] as number) : 0;
+    if (!result[0] || !result[0].values || result[0].values.length === 0) {
+        return 0;
+    }
+    
+    const row = result[0].values[0];
+    if (!row) {
+        return 0;
+    }
+
+    return row[0] as number;
 }
 
 /**
@@ -229,11 +249,20 @@ export async function getWaitlistCount(eventId: string): Promise<number> {
     const db = await getDatabase();
     
     const result = db.exec(
-        `SELECT COUNT(*) FROM event_registrations WHERE event_id = ? AND is_waitlisted = 1`,
+        `SELECT COUNT(*) FROM event_registrations WHERE event_id = ? AND status = 'WAITLISTED'`,
         [eventId]
     );
 
-    return result.length > 0 && result[0] && result[0].values && result[0].values[0] ? (result[0].values[0][0] as number) : 0;
+    if (!result[0] || !result[0].values || result[0].values.length === 0) {
+        return 0;
+    }
+    
+    const row = result[0].values[0];
+    if (!row) {
+        return 0;
+    }
+
+    return row[0] as number;
 }
 
 /**
@@ -244,7 +273,7 @@ export async function getNextFromWaitlist(eventId: string): Promise<EventRegistr
     
     const result = db.exec(
         `SELECT * FROM event_registrations 
-         WHERE event_id = ? AND is_waitlisted = 1 
+         WHERE event_id = ? AND status = 'WAITLISTED' 
          ORDER BY registered_at ASC 
          LIMIT 1`,
         [eventId]
@@ -261,7 +290,7 @@ export async function getNextFromWaitlist(eventId: string): Promise<EventRegistr
         id: row[0] as string,
         event_id: row[1] as string,
         user_id: row[2] as string,
-        is_waitlisted: true,
+        status: 'WAITLISTED' as RegistrationStatus,
         registered_at: row[4] as string
     };
 }
