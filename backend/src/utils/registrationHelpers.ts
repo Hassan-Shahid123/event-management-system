@@ -133,5 +133,3 @@ export async function executeRegistrationTransaction(
     throw error;
   }
 }
-  }
-}
