@@ -6,7 +6,7 @@
 
 import { Router, Request, Response } from 'express';
 import * as eventService from '../services/eventService';
-import { executeQuery, ParseError } from '../query';
+import { executeQuery, SyntaxError } from '../query';
 
 const router = Router();
 
@@ -96,12 +96,12 @@ router.post('/query', async (req: Request, res: Response) => {
     });
 
   } catch (error: any) {
-    // Handle parse errors specially to provide better feedback
-    if (error instanceof ParseError) {
+    // Handle syntax errors from Peggy parser
+    if (error.location) {
       return res.status(400).json({ 
         error: 'Query syntax error',
         message: error.message,
-        position: error.position,
+        location: error.location,
         query: req.body.query,
         hint: 'Check grammar at /api/events/query/help'
       });

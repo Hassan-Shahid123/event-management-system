@@ -1,20 +1,19 @@
 /**
  * Event Query Language - Public API
  * 
- * Exports the complete query language implementation.
- * Provides a clean interface for using the little language.
+ * Grammar-first DSL implementation using Peggy parser generator.
  * 
  * SOFTWARE CONSTRUCTION CONCEPTS:
- * ==============================
  * - Little languages (domain-specific languages)
- * - API design and abstraction
- * - Separation of concerns
- * - Information hiding (implementation details hidden)
+ * - Grammar as specification
+ * - Parser generators (Peggy)
+ * - Declarative language design
+ * - Abstract syntax trees
+ * - Interpreter pattern
  * 
- * USAGE EXAMPLE:
- * ==============
+ * USAGE:
  * 
- * import { executeQuery, parseQuery, printAST } from './query';
+ * import { parse, executeQuery } from './query';
  * 
  * // Execute query directly
  * const result = executeQuery(
@@ -23,12 +22,8 @@
  * );
  * 
  * // Or parse and inspect AST first
- * const ast = parseQuery("title CONTAINS workshop");
+ * const ast = parse("title CONTAINS workshop");
  * console.log(printAST(ast));
- * 
- * // Then evaluate
- * const interpreter = new Interpreter(allEvents);
- * const result = interpreter.evaluate(ast);
  */
 
 // Grammar and type definitions
@@ -40,19 +35,8 @@ export {
   QueryOperator 
 } from './grammar';
 
-// Lexer (tokenization)
-export { 
-  Lexer, 
-  Token, 
-  TokenType 
-} from './lexer';
-
-// Parser (syntax analysis)
-export { 
-  Parser, 
-  ParseError,
-  parseQuery 
-} from './parser';
+// Parser (generated from query.peggy grammar)
+export { parse, SyntaxError } from './parser-generated';
 
 // AST (abstract syntax tree)
 export {

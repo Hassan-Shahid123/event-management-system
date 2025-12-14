@@ -1,61 +1,45 @@
-# Event Query Language - Little Language Implementation
+# Event Query Language - Grammar-First DSL Implementation
 
 ## Overview
 
-This directory contains a complete implementation of a **domain-specific language (DSL)** for querying events in the CampusConnect event management system. This implementation demonstrates key software construction concepts from MIT 6.102, particularly focusing on **grammar design**, **parsing**, and **little languages**.
+This directory contains a complete domain-specific language (DSL) for querying events in the CampusConnect system, built using **Peggy parser generator**. This implementation demonstrates software construction concepts from MIT 6.102 with emphasis on grammar design and little languages.
+
+## Key Innovation: Grammar-First Design
+
+The query language is defined by its **PEG (Parsing Expression Grammar)** file ([query.peggy](query.peggy)), which serves as both specification and implementation. The Peggy parser generator compiles this grammar directly into a working parser, making grammar the primary design artifact.
 
 ## Software Construction Concepts Demonstrated
 
-### 1. **Grammar (Formal Language Theory)**
+### 1. Grammar (Parsing Expression Grammar)
 
-The Event Query Language is defined using **Extended Backus-Naur Form (EBNF)** notation:
+The Event Query Language uses PEG notation in [query.peggy](query.peggy):
 
-```ebnf
-Query        ::= Expression EOF
-Expression   ::= AndExpr ( 'OR' AndExpr )*
-AndExpr      ::= Condition ( 'AND' Condition )*
-Condition    ::= Comparison | '(' Expression ')'
-Comparison   ::= Field Operator Value
+```peg
+Query        = _ expr:Expression _ EOF
+Expression   = left:AndExpr _ rest:( "OR" _ right:AndExpr )* 
+AndExpr      = left:Condition _ rest:( "AND" _ right:Condition )*
+Condition    = "(" _ expr:Expression _ ")" / Comparison
+Comparison   = field:Field _ op:Operator _ value:Value
 
-Field        ::= 'title' | 'status' | 'organizer' | 'venue' | 'date' | 'capacity'
-Operator     ::= '=' | '!=' | 'CONTAINS' | '>' | '<' | '>=' | '<='
-Value        ::= STRING | DATE | NUMBER
+Field        = "title" / "status" / "organizer" / "venue" / "date" / "capacity"
+Operator     = "CONTAINS" / ">=" / "<=" / "!=" / "=" / ">" / "<"
+Value        = DateValue / NumberValue / StringValue
 ```
 
-**Grammar properties:**
-- **Context-free grammar** allowing recursive nesting
-- **Unambiguous** - each valid query has exactly one parse tree
-- **Operator precedence** built into grammar structure (AND > OR)
-- **Left-associative** operators for natural evaluation order
+**PEG Properties:**
+- **Ordered choice** (`/`) with priority
+- **Unambiguous** - first matching alternative wins
+- **Greedy matching** - longest match preferred
+- **Operator precedence** through grammar structure (AND > OR)
+- **No left recursion** - direct translation to recursive descent
 
-### 2. **Parsing (Recursive Descent)**
+### 2. Little Languages (Domain-Specific Languages)
 
-The parser implements a **recursive descent** algorithm where each grammar production maps to a parsing method:
+A small, specialized language for event querying with grammar as specification.
 
-```
-parseExpression()  →  Expression ::= AndExpr ( 'OR' AndExpr )*
-parseAndExpr()     →  AndExpr ::= Condition ( 'AND' Condition )*
-parseCondition()   →  Condition ::= Comparison | '(' Expression ')'
-parseComparison()  →  Comparison ::= Field Operator Value
-```
+**Declarative Design:** Grammar rules define language structure directly.
 
-**Parsing characteristics:**
-- **Top-down** parsing with **lookahead**
-- **Predictive** - decides which production to use based on current token
-- **Error recovery** with detailed error messages including position
-- **O(n) time complexity** where n is the number of tokens
-
-### 3. **Little Languages (Domain-Specific Languages)**
-
-The Event Query Language is a **little language** - a small, specialized language designed for a specific domain (event querying).
-
-**Benefits of little languages:**
-- **Declarative** - express what you want, not how to compute it
-- **Domain-focused** - syntax tailored to event queries
-- **Safe** - type-checked and validated
-- **Composable** - build complex queries from simple parts
-
-**Example queries:**
+Example queries:
 ```sql
 status = UPCOMING
 status = UPCOMING AND capacity > 50
@@ -64,9 +48,18 @@ title CONTAINS workshop OR title CONTAINS seminar
 date > 2025-12-14 AND date < 2025-12-31
 ```
 
-### 4. **Recursive Data Types**
+### 3. Parser Generators
 
-The Abstract Syntax Tree (AST) uses **recursive data types**:
+**Peggy** transforms grammar into executable parser:
+- Grammar file → Parser code (automatic)
+- Grammar is the specification
+- Changes to language = changes to grammar
+- Rapid DSL development
+- Industry best practice for little languages
+
+### 4. Recursive Data Types
+
+The Abstract Syntax Tree uses recursive data types:
 
 ```typescript
 type Expression = BinaryExpr | ComparisonExpr | FieldExpr
@@ -74,82 +67,48 @@ type Expression = BinaryExpr | ComparisonExpr | FieldExpr
 interface BinaryExpr {
   kind: 'BinaryExpr';
   operator: 'AND' | 'OR';
-  left: Expression;    // Recursive: Expression contains Expression
-  right: Expression;   // Recursive: Expression contains Expression
+  left: Expression;    // Recursive
+  right: Expression;   // Recursive
 }
 ```
 
-**Properties of recursive data types:**
-- **Self-referential** structure allowing arbitrary nesting
-- **Tree-shaped** data (no cycles)
-- **Pattern matching** for traversal and evaluation
-- **Structural recursion** in operations (countNodes, getDepth, evaluate)
+**Properties:**
+- Self-referential structure
+- Tree-shaped (no cycles)
+- Pattern matching for traversal
+- Structural recursion in operations
 
-### 5. **Abstract Data Types (ADTs)**
+### 5. Abstract Data Types
 
-Each component is designed as an **abstract data type** with:
+Representation invariants:
+- Lexer: 0 <= current <= input.length
+- Parser: tokens array ends with EOF
+- AST: tree structure with no cycles
 
-**Representation invariants:**
-```typescript
-// Lexer invariant: 0 <= current <= input.length
-// Parser invariant: tokens array ends with EOF
-// AST invariant: tree structure with no cycles
-```
+Operations:
+- Lexer: tokenize() → Token[]
+- Parser: parse() → Expression
+- Interpreter: evaluate(Expression) → QueryResult
 
-**Operations:**
-```typescript
-// Lexer: tokenize() → Token[]
-// Parser: parse() → Expression
-// Interpreter: evaluate(Expression) → QueryResult
-```
+### 6. Regular Expressions
 
-**Specifications (pre/postconditions):**
-```typescript
-/**
- * @precondition: input !== null
- * @postcondition: returns valid token stream ending with EOF
- */
-public tokenize(): Token[]
-```
-
-### 6. **Regular Expressions**
-
-The lexer uses **regular expressions** for pattern matching:
+Pattern matching in the lexer:
 
 ```typescript
 isDatePattern(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
-
-isNumberPattern(value: string): boolean {
-  return /^\d+$/.test(value);
-}
-
-isAlphaNumeric(char: string): boolean {
-  return /[a-zA-Z0-9_]/.test(char);
-}
 ```
 
-**Regular expressions provide:**
-- **Declarative** pattern matching
-- **Efficient** finite state machine implementation
-- **Composable** patterns using alternation, repetition, grouping
+Provides declarative pattern matching with efficient finite state machine implementation.
 
-### 7. **Specifications and Documentation**
+### 7. Specifications and Documentation
 
-Every method includes detailed specifications:
+Methods include pre/postconditions:
 
 ```typescript
 /**
  * Evaluates a query and returns matching events
- * 
- * @param ast - Query AST from parser
- * @returns Query result with matched events
- * 
- * Specification:
- * - Evaluates AST against all events
- * - Returns events where AST evaluates to true
- * - Tracks execution time for performance monitoring
  * 
  * Precondition: ast is valid AST from parser
  * Postcondition: Result contains events matching query
@@ -158,9 +117,9 @@ Every method includes detailed specifications:
 public evaluate(ast: Expression): QueryResult
 ```
 
-### 8. **Immutability**
+### 8. Immutability
 
-All AST nodes are **immutable** using TypeScript's `readonly` modifier:
+AST nodes use TypeScript `readonly`:
 
 ```typescript
 interface BinaryExpr {
@@ -171,17 +130,13 @@ interface BinaryExpr {
 }
 ```
 
-**Benefits:**
-- **Thread-safe** (no concurrent modification)
-- **Easier reasoning** (no hidden mutations)
-- **Functional style** (pure functions)
+Benefits: thread-safe, easier reasoning, functional style.
 
-### 9. **Static Type Checking**
+### 9. Static Type Checking
 
-TypeScript provides **compile-time type safety**:
+TypeScript discriminated unions for exhaustive checking:
 
 ```typescript
-// Discriminated unions for exhaustive checking
 type Expression = BinaryExpr | ComparisonExpr | FieldExpr;
 
 function evaluate(expr: Expression): boolean {
@@ -223,32 +178,34 @@ describe('Lexer', () => {
 
 ### 11. **Code as Data**
 
-The query language embodies the **"code as data"** principle:
+### 11. Code as Data
 
-1. **Text query** (code) → **Lexer** → Tokens (data)
-2. **Tokens** (data) → **Parser** → AST (data structure)
-3. **AST** (data) → **Interpreter** → Results
+The query language follows the "code as data" principle:
 
-The AST is a **first-class data structure** that can be:
-- Inspected (`printAST`)
-- Validated (`validateAST`)
-- Transformed (could add query optimization)
-- Serialized (could save/load queries)
+1. Text query → Lexer → Tokens
+2. Tokens → Parser → AST
+3. AST → Interpreter → Results
+
+The AST can be inspected, validated, transformed, and serialized.
 
 ## Architecture
 
 ```
 src/query/
-├── grammar.ts       # Grammar definition (EBNF)
-├── lexer.ts         # Tokenization (lexical analysis)
-├── parser.ts        # Parsing (syntax analysis)
-├── ast.ts           # Abstract syntax tree (data types)
-├── interpreter.ts   # Evaluation (semantic analysis)
-├── index.ts         # Public API
-└── __tests__/
-    ├── lexer.test.ts     # Lexer tests (100+ tests)
-    └── parser.test.ts    # Parser tests (50+ tests)
+├── query.peggy          # PEG grammar (primary specification)
+├── parser-generated.js  # Generated parser (from Peggy)
+├── parser-generated.d.ts # TypeScript declarations
+├── ast.ts               # Abstract syntax tree
+├── interpreter.ts       # Evaluation
+├── grammar.ts           # Type definitions
+├── index.ts             # Public API
+└── __tests__/           # Comprehensive test suites
 ```
+
+**Build Process:**
+1. `npm run generate-parser` - Peggy compiles grammar to parser
+2. `tsc` - TypeScript compiles to JavaScript
+3. Parser is regenerated automatically before each build
 
 ## Usage
 
@@ -263,7 +220,7 @@ Content-Type: application/json
 }
 ```
 
-**Response:**
+Response:
 ```json
 {
   "events": [...],
@@ -277,22 +234,14 @@ Content-Type: application/json
 ### Programmatic Usage
 
 ```typescript
-import { executeQuery, parseQuery, printAST } from './query';
+import { parse, executeQuery } from './query';
 
-// Execute query directly
-const result = executeQuery(
-  "status = UPCOMING AND capacity > 50",
-  allEvents
-);
+// Parse query to AST
+const ast = parse("status = UPCOMING AND capacity > 50");
+
+// Or execute directly
+const result = executeQuery("status = UPCOMING AND capacity > 50", allEvents);
 console.log(`Found ${result.matched} events`);
-
-// Or parse and inspect AST
-const ast = parseQuery("title CONTAINS workshop");
-console.log(printAST(ast));
-
-// Then evaluate
-const interpreter = new Interpreter(allEvents);
-const result = interpreter.evaluate(ast);
 ```
 
 ### Help Endpoint
@@ -300,8 +249,6 @@ const result = interpreter.evaluate(ast);
 ```http
 GET /api/events/query/help
 ```
-
-Returns complete documentation with examples and grammar reference.
 
 ## Query Examples
 
@@ -369,57 +316,34 @@ date > 2025-12-14
 - Recognizes keywords (AND, OR, CONTAINS)
 - Identifies operators (=, !=, >, <, >=, <=)
 - Classifies values (STRING, NUMBER, DATE)
-- Tracks position for error reporting
-
 ### Parser (Syntax Analysis)
 
-**Recursive descent with operator precedence:**
-- AND has higher precedence than OR
-- Left-associative operators
-- Parentheses for grouping
-- Predictive parsing with 1-token lookahead
+Recursive descent with operator precedence, left-associative, 1-token lookahead.
 
 ### AST (Intermediate Representation)
 
-**Tree structure with three node types:**
-- `BinaryExpr` - AND/OR operations
-- `ComparisonExpr` - field operator value
-- `FieldExpr` - simple field reference
+Three node types: BinaryExpr (AND/OR), ComparisonExpr (field operator value), FieldExpr.
 
 ### Interpreter (Evaluation)
 
-**Visitor pattern for AST traversal:**
-- Recursively evaluates expressions
-- Short-circuit evaluation (AND, OR)
-- Type-aware comparisons (string, number, date)
-- Case-insensitive string matching
+Visitor pattern, recursive evaluation, short-circuit logic, type-aware comparisons.
 
 ## Testing
 
-Run tests:
 ```bash
 npm test -- query
 ```
 
-**Test coverage:**
-- Lexer: 100+ test cases covering all token types
-- Parser: 50+ test cases covering grammar productions
-- Edge cases: empty input, invalid syntax, boundary conditions
-- Integration: end-to-end query execution
+77 tests covering lexer, parser, edge cases, and integration.
 
 ## Performance
 
-**Time complexity:**
-- Lexing: O(n) where n = input length
-- Parsing: O(t) where t = number of tokens
-- Evaluation: O(e × d) where e = number of events, d = AST depth
+Time complexity:
+- Lexing: O(n)
+- Parsing: O(t)
+- Evaluation: O(e × d)
 
-**Space complexity:**
-- Token array: O(t)
-- AST: O(d) where d = AST depth
-- Results: O(m) where m = matched events
-
-**Typical performance:**
+Typical performance:
 - Lexing + Parsing: < 5ms for complex queries
 - Evaluation: 10-50ms for 1000 events
 - Total: < 100ms end-to-end
@@ -432,32 +356,18 @@ This implementation is designed to demonstrate MIT 6.102 Software Construction c
 2. ✅ **Parsing** - Recursive descent parser
 3. ✅ **Little Languages** - Domain-specific query language
 4. ✅ **Recursive Data Types** - AST with nested expressions
-5. ✅ **Abstract Data Types** - Lexer, Parser, Interpreter
-6. ✅ **Regular Expressions** - Pattern matching in lexer
-7. ✅ **Specifications** - Pre/postconditions, invariants
-8. ✅ **Immutability** - Readonly AST nodes
-9. ✅ **Static Checking** - TypeScript type safety
-10. ✅ **Testing** - Comprehensive test suites
+This implementation demonstrates 10 major MIT 6.102 concepts: Grammar, Parsing, Little Languages, Recursive Data Types, ADTs, Regular Expressions, Specifications, Immutability, Static Checking, and Testing.
 
 ## Future Enhancements
 
-**Potential extensions:**
-1. **Query optimization** - rewrite AST for better performance
-2. **Query caching** - memoize parsed queries
-3. **More operators** - LIKE, IN, BETWEEN, NOT
-4. **Aggregations** - COUNT, SUM, AVG
-5. **Sorting** - ORDER BY clause
-6. **Pagination** - LIMIT, OFFSET
-7. **Subqueries** - nested query support
-8. **Query builder UI** - visual query construction
+Potential extensions: query optimization, caching, additional operators (NOT, IN, BETWEEN), aggregations, sorting, pagination, subqueries, visual query builder.
 
 ## References
 
 - MIT 6.102 Software Construction Course
 - "Crafting Interpreters" by Robert Nystrom
 - "Modern Compiler Implementation" by Andrew Appel
-- "Programming Language Pragmatics" by Michael Scott
 
 ## Authors
 
-Developed as part of the CampusConnect event management system to demonstrate software construction principles with practical application.
+Developed for CampusConnect to demonstrate software construction principles with practical application.

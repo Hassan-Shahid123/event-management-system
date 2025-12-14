@@ -348,8 +348,8 @@ export class Interpreter {
  * - Semantic analysis (evaluation)
  */
 export function executeQuery(query: string, events: Event[]): QueryResult {
-  const { parseQuery } = require('./parser');
-  const ast = parseQuery(query);
+  const { parse } = require('./parser-generated');
+  const ast = parse(query);
   const interpreter = new Interpreter(events);
   return interpreter.evaluate(ast);
 }

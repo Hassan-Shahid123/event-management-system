@@ -2,13 +2,13 @@
 
 A comprehensive event management backend system built with TypeScript, demonstrating software construction principles from MIT 6.102.
 
-## 🎓 Academic Focus: Software Construction Concepts
+## Academic Focus: Software Construction Concepts
 
-This project impressively demonstrates key software construction concepts, with special emphasis on:
+This project demonstrates key software construction concepts with special emphasis on:
 
-### 🌟 **Grammar & Little Languages** (Primary Focus)
+### Grammar & Little Languages (Primary Focus)
 
-The project features a complete **domain-specific query language** for event filtering:
+The project features a complete domain-specific query language for event filtering, built using **Peggy parser generator** to emphasize grammar-first design:
 
 ```sql
 -- Simple queries
@@ -25,14 +25,17 @@ date > 2025-12-14 AND date < 2025-12-31
 ```
 
 **Implementation Highlights:**
-- ✅ Formal **EBNF grammar** definition
-- ✅ **Lexer** with regex-based tokenization
-- ✅ **Recursive descent parser**
-- ✅ **Abstract syntax tree** (AST) with recursive data types
-- ✅ **Interpreter** with visitor pattern
-- ✅ Complete **API integration** (`POST /api/events/query`)
+- **Formal PEG (Parsing Expression Grammar)** - Primary specification artifact
+- **Peggy Parser Generator** - Grammar compiles directly to parser
+- **Declarative Design** - Grammar rules define language structure
+- Abstract syntax tree (AST) with recursive data types
+- Interpreter with visitor pattern
+- Complete API integration (`POST /api/events/query`)
 
-📖 **See [src/query/README.md](src/query/README.md) for detailed documentation**
+**Grammar-First Approach:**
+The query language is defined by its grammar file ([query.peggy](src/query/query.peggy)), which serves as both specification and implementation. This demonstrates the "little languages" concept where grammar is the primary design artifact.
+
+See [src/query/README.md](src/query/README.md) for detailed documentation.
 
 ### Additional Software Construction Concepts Demonstrated
 
@@ -46,7 +49,7 @@ date > 2025-12-14 AND date < 2025-12-31
 8. **Code as Data** - Queries represented as manipulable data structures
 9. **Separation of Concerns** - Clean architecture with layers
 
-## 🏗️ Architecture
+## Architecture
 
 ### 4-Layer Architecture
 
@@ -65,9 +68,8 @@ Database Layer (SQLite)
 ```
 src/
 ├── query/              # Event Query Language (DSL)
-│   ├── grammar.ts     # Formal EBNF grammar
-│   ├── lexer.ts       # Tokenization
-│   ├── parser.ts      # Recursive descent parser
+│   ├── query.peggy    # PEG grammar (primary specification)
+│   ├── parser-generated.js # Generated parser
 │   ├── ast.ts         # Abstract syntax tree
 │   ├── interpreter.ts # Query evaluation
 │   ├── README.md      # Detailed documentation
@@ -116,7 +118,7 @@ npm test -- query          # Query language tests only
 npm test -- --coverage     # With coverage report
 ```
 
-## 📚 API Documentation
+## API Documentation
 
 ### Query Language Endpoint
 
@@ -161,43 +163,37 @@ Returns complete grammar documentation and examples.
 - `GET /api/venues` - List venues
 - `POST /api/venues` - Create venue
 
-📖 **See [API.md](API.md) for complete API documentation**
+See [API.md](API.md) for complete API documentation.
 
-## 🧪 Testing
+## Testing
 
 ### Test Coverage
 
-- **Query Language**: 150+ tests
+- **Query Language**: 77 tests
   - Lexer: Token recognition, whitespace handling, error cases
   - Parser: Grammar productions, precedence, associativity
-  - Interpreter: Evaluation correctness, type handling
   
-- **Test Strategies**:
-  - Partition-based testing
-  - Boundary testing
-  - Glass-box testing (internal structure)
-  - Error testing
+- **Test Strategies**: Partition-based, boundary, glass-box, error testing
 
 ### Running Specific Test Suites
 
 ```bash
 npm test -- lexer           # Lexer tests
 npm test -- parser          # Parser tests
-npm test -- interpreter     # Interpreter tests
 ```
 
-## 📖 Documentation
+## Documentation
 
-- **[Query Language README](src/query/README.md)** - Comprehensive DSL documentation
-- **[API Documentation](API.md)** - REST API reference
-- **[Getting Started Guide](GETTING_STARTED.md)** - Setup and workflow
+- [Query Language README](src/query/README.md) - DSL documentation
+- [API Documentation](API.md) - REST API reference
+- [Getting Started Guide](GETTING_STARTED.md) - Setup and workflow
 
-## 🎯 Key Features
+## Key Features
 
 ### Event Query Language (DSL)
 
-- **Formal grammar** with EBNF notation
-- **Boolean logic** (AND, OR) with proper precedence
+- Formal grammar with EBNF notation
+- Boolean logic (AND, OR) with proper precedence
 - **Comparison operators** (=, !=, >, <, >=, <=, CONTAINS)
 - **Type-aware** comparisons (strings, numbers, dates)
 - **Recursive** nesting with parentheses
@@ -218,37 +214,27 @@ npm test -- interpreter     # Interpreter tests
 - JWT token authentication
 - User role management
 
-## 🏆 Software Construction Excellence
+## Software Construction Excellence
 
-### Why This Implementation Stands Out
+This implementation demonstrates:
 
-1. **Complete Little Language**: Not just a parser, but a full language with lexer, parser, AST, and interpreter
+1. Complete little language with lexer, parser, AST, and interpreter
+2. Formal specifications with documented pre/postconditions and invariants
+3. Recursive data types with operations (depth, count, validate)
+4. Comprehensive testing with systematic test strategies
+5. Production API integration
+6. Clean separation of concerns across all layers
+7. TypeScript type safety for compile-time guarantees
+8. Functional programming with immutability
+9. Extensible design for new operators and features
 
-2. **Formal Specifications**: Every component has documented pre/postconditions and invariants
+## Performance
 
-3. **Recursive Data Types**: AST demonstrates recursive structures with operations (depth, count, validate)
+- Lexing + Parsing: < 5ms for complex queries
+- Query Evaluation: 10-50ms for 1000 events
+- Total Latency: < 100ms end-to-end
 
-4. **Comprehensive Testing**: 150+ tests with systematic test strategies
-
-5. **Real-World Integration**: Query language integrated into production API
-
-6. **Educational Documentation**: Every file explains the concepts it demonstrates
-
-7. **Clean Architecture**: Separation of concerns across all layers
-
-8. **Type Safety**: Leverages TypeScript for compile-time guarantees
-
-9. **Immutability**: Functional programming principles throughout
-
-10. **Extensibility**: Designed for easy addition of new operators and features
-
-## 📊 Performance
-
-- **Lexing + Parsing**: < 5ms for complex queries
-- **Query Evaluation**: 10-50ms for 1000 events
-- **Total Latency**: < 100ms end-to-end
-
-## 🔮 Future Enhancements
+## Future Enhancements
 
 ### Query Language
 
@@ -283,20 +269,16 @@ npm test -- interpreter     # Interpreter tests
 - Descriptive commit messages
 - Regular commits with logical changes
 
-## 📝 License
+## License
 
 MIT License - See LICENSE file for details
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - MIT 6.102 Software Construction Course
 - "Crafting Interpreters" by Robert Nystrom
 - TypeScript and Node.js communities
 
-## 📬 Contact
+## Contact
 
 For questions about the implementation or concepts demonstrated, please refer to the documentation in [src/query/README.md](src/query/README.md).
-
----
-
-**Built with 💙 to demonstrate software construction excellence**

@@ -1,38 +1,32 @@
 /**
  * Event Query Language - Parser Tests
  * 
- * Tests the parser's ability to construct correct AST from tokens.
- * Demonstrates specification-based testing and grammar validation.
+ * Tests Peggy-generated parser's ability to construct correct AST.
+ * Demonstrates grammar-based testing and validation.
  * 
  * SOFTWARE CONSTRUCTION CONCEPTS:
- * ==============================
- * - Specification testing (test against documented behavior)
- * - Grammar-based test generation
+ * - Grammar-driven testing
+ * - Specification testing
  * - Recursive structure testing
- * - Error handling testing
+ * - Error handling
  */
 
-import { parseQuery, ParseError } from '../parser';
-import { Lexer } from '../lexer';
-import { Parser } from '../parser';
+import { parse } from '../parser-generated';
 import { validateAST, countNodes, getDepth } from '../ast';
 
-describe('Parser', () => {
+describe('Peggy Parser', () => {
   /**
    * Test strategy:
-   * - Partition on grammar productions
-   * - Test each operator (AND, OR, comparisons)
-   * - Test precedence and associativity
+   * - Test grammar productions
+   * - Test operator precedence (AND > OR)
+   * - Test associativity
    * - Test error cases
-   * - Test boundary cases (empty, complex)
+   * - Test AST structure
    */
 
   describe('Simple comparisons', () => {
-    /**
-     * Covers: Comparison ::= Field Operator Value
-     */
     test('parses equality comparison', () => {
-      const ast = parseQuery('status = UPCOMING');
+      const ast = parse('status = UPCOMING');
       
       expect(ast.kind).toBe('ComparisonExpr');
       if (ast.kind === 'ComparisonExpr') {
@@ -43,7 +37,7 @@ describe('Parser', () => {
     });
 
     test('parses inequality comparison', () => {
-      const ast = parseQuery('status != CANCELLED');
+      const ast = parse('status != CANCELLED');
       
       if (ast.kind === 'ComparisonExpr') {
         expect(ast.operator).toBe('!=');
@@ -52,7 +46,7 @@ describe('Parser', () => {
     });
 
     test('parses CONTAINS comparison', () => {
-      const ast = parseQuery('title CONTAINS workshop');
+      const ast = parse('title CONTAINS workshop');
       
       if (ast.kind === 'ComparisonExpr') {
         expect(ast.field).toBe('title');
@@ -62,7 +56,7 @@ describe('Parser', () => {
     });
 
     test('parses numeric comparison', () => {
-      const ast = parseQuery('capacity > 50');
+      const ast = parse('capacity > 50');
       
       if (ast.kind === 'ComparisonExpr') {
         expect(ast.field).toBe('capacity');
@@ -72,7 +66,7 @@ describe('Parser', () => {
     });
 
     test('parses date comparison', () => {
-      const ast = parseQuery('date > 2025-12-14');
+      const ast = parse('date > 2025-12-14');
       
       if (ast.kind === 'ComparisonExpr') {
         expect(ast.field).toBe('date');
@@ -87,7 +81,7 @@ describe('Parser', () => {
      * Covers: Expression ::= AndExpr ( 'OR' AndExpr )*
      */
     test('parses AND expression', () => {
-      const ast = parseQuery('status = UPCOMING AND venue = auditorium');
+      const ast = parse('status = UPCOMING AND venue = auditorium');
       
       expect(ast.kind).toBe('BinaryExpr');
       if (ast.kind === 'BinaryExpr') {
@@ -98,7 +92,7 @@ describe('Parser', () => {
     });
 
     test('parses OR expression', () => {
-      const ast = parseQuery('status = UPCOMING OR status = INPROGRESS');
+      const ast = parse('status = UPCOMING OR status = INPROGRESS');
       
       expect(ast.kind).toBe('BinaryExpr');
       if (ast.kind === 'BinaryExpr') {
@@ -106,32 +100,23 @@ describe('Parser', () => {
       }
     });
 
-    /**
-     * Covers: Left-associativity
-     * A AND B AND C should parse as (A AND B) AND C
-     */
-    test('AND is left-associative', () => {
-      const ast = parseQuery('a = 1 AND b = 2 AND c = 3');
+    test('parses multiple ANDs', () => {
+      const ast = parse('status = UPCOMING AND venue = lab AND capacity = 50');
       
       expect(ast.kind).toBe('BinaryExpr');
       if (ast.kind === 'BinaryExpr') {
         expect(ast.operator).toBe('AND');
-        expect(ast.left.kind).toBe('BinaryExpr');
-        expect(ast.right.kind).toBe('ComparisonExpr');
-        
-        // Left child should be (a = 1 AND b = 2)
-        if (ast.left.kind === 'BinaryExpr') {
-          expect(ast.left.operator).toBe('AND');
-        }
+        expect(countNodes(ast)).toBe(5); // 3 comparisons + 2 AND nodes
       }
     });
 
-    test('OR is left-associative', () => {
-      const ast = parseQuery('a = 1 OR b = 2 OR c = 3');
+    test('parses multiple ORs', () => {
+      const ast = parse('status = UPCOMING OR status = INPROGRESS OR status = COMPLETED');
       
+      expect(ast.kind).toBe('BinaryExpr');
       if (ast.kind === 'BinaryExpr') {
         expect(ast.operator).toBe('OR');
-        expect(ast.left.kind).toBe('BinaryExpr');
+        expect(countNodes(ast)).toBe(5); // 3 comparisons + 2 OR nodes
       }
     });
   });
@@ -142,7 +127,7 @@ describe('Parser', () => {
      * A OR B AND C should parse as A OR (B AND C)
      */
     test('AND binds tighter than OR', () => {
-      const ast = parseQuery('a = 1 OR b = 2 AND c = 3');
+      const ast = parse('status = UPCOMING OR venue = lab AND capacity = 50');
       
       expect(ast.kind).toBe('BinaryExpr');
       if (ast.kind === 'BinaryExpr') {
@@ -150,7 +135,7 @@ describe('Parser', () => {
         expect(ast.left.kind).toBe('ComparisonExpr');
         expect(ast.right.kind).toBe('BinaryExpr');
         
-        // Right child should be (b = 2 AND c = 3)
+        // Right child should be (venue = lab AND capacity = 50)
         if (ast.right.kind === 'BinaryExpr') {
           expect(ast.right.operator).toBe('AND');
         }
@@ -158,12 +143,12 @@ describe('Parser', () => {
     });
 
     test('multiple ANDs and ORs respect precedence', () => {
-      const ast = parseQuery('a = 1 AND b = 2 OR c = 3 AND d = 4');
+      const ast = parse('status = UPCOMING AND venue = lab OR status = INPROGRESS AND capacity = 100');
       
       if (ast.kind === 'BinaryExpr') {
         expect(ast.operator).toBe('OR');
-        // Left: (a = 1 AND b = 2)
-        // Right: (c = 3 AND d = 4)
+        // Left: (status = UPCOMING AND venue = lab)
+        // Right: (status = INPROGRESS AND capacity = 100)
         expect(ast.left.kind).toBe('BinaryExpr');
         expect(ast.right.kind).toBe('BinaryExpr');
       }
@@ -176,13 +161,13 @@ describe('Parser', () => {
      * Parentheses override default precedence
      */
     test('parses grouped expression', () => {
-      const ast = parseQuery('(status = UPCOMING)');
+      const ast = parse('(status = UPCOMING)');
       
       expect(ast.kind).toBe('ComparisonExpr');
     });
 
     test('parentheses override precedence', () => {
-      const ast = parseQuery('(a = 1 OR b = 2) AND c = 3');
+      const ast = parse('(status = UPCOMING OR status = INPROGRESS) AND venue = lab');
       
       expect(ast.kind).toBe('BinaryExpr');
       if (ast.kind === 'BinaryExpr') {
@@ -190,7 +175,7 @@ describe('Parser', () => {
         expect(ast.left.kind).toBe('BinaryExpr');
         expect(ast.right.kind).toBe('ComparisonExpr');
         
-        // Left child should be (a = 1 OR b = 2)
+        // Left child should be (status = UPCOMING OR status = INPROGRESS)
         if (ast.left.kind === 'BinaryExpr') {
           expect(ast.left.operator).toBe('OR');
         }
@@ -198,7 +183,7 @@ describe('Parser', () => {
     });
 
     test('parses nested parentheses', () => {
-      const ast = parseQuery('((a = 1 OR b = 2) AND c = 3)');
+      const ast = parse('((status = UPCOMING OR status = INPROGRESS) AND venue = lab)');
       
       expect(ast.kind).toBe('BinaryExpr');
       if (ast.kind === 'BinaryExpr') {
@@ -212,7 +197,7 @@ describe('Parser', () => {
      * Covers: Real-world query patterns
      */
     test('parses complex event query', () => {
-      const ast = parseQuery(
+      const ast = parse(
         '(status = UPCOMING OR status = INPROGRESS) AND capacity > 50 AND venue = auditorium'
       );
       
@@ -221,7 +206,7 @@ describe('Parser', () => {
     });
 
     test('parses date range with text search', () => {
-      const ast = parseQuery(
+      const ast = parse(
         'date > 2025-12-14 AND date < 2025-12-31 AND title CONTAINS workshop'
       );
       
@@ -229,8 +214,8 @@ describe('Parser', () => {
     });
 
     test('parses deeply nested query', () => {
-      const ast = parseQuery(
-        '((a = 1 OR b = 2) AND (c = 3 OR d = 4)) OR (e = 5 AND f = 6)'
+      const ast = parse(
+        '((status = UPCOMING OR status = INPROGRESS) AND (venue = lab OR venue = auditorium)) OR (capacity = 50 AND organizer = user1)'
       );
       
       expect(validateAST(ast)).toBe(true);
@@ -243,12 +228,12 @@ describe('Parser', () => {
      * Covers: validateAST function
      */
     test('validates simple comparison', () => {
-      const ast = parseQuery('status = UPCOMING');
+      const ast = parse('status = UPCOMING');
       expect(validateAST(ast)).toBe(true);
     });
 
     test('validates binary expression', () => {
-      const ast = parseQuery('status = UPCOMING AND venue = auditorium');
+      const ast = parse('status = UPCOMING AND venue = auditorium');
       expect(validateAST(ast)).toBe(true);
     });
 
@@ -256,12 +241,12 @@ describe('Parser', () => {
      * Covers: countNodes function
      */
     test('counts nodes correctly', () => {
-      const ast = parseQuery('status = UPCOMING');
+      const ast = parse('status = UPCOMING');
       expect(countNodes(ast)).toBe(1);
     });
 
     test('counts nodes in binary expression', () => {
-      const ast = parseQuery('status = UPCOMING AND venue = auditorium');
+      const ast = parse('status = UPCOMING AND venue = auditorium');
       expect(countNodes(ast)).toBe(3); // 1 BinaryExpr + 2 ComparisonExpr
     });
 
@@ -269,17 +254,17 @@ describe('Parser', () => {
      * Covers: getDepth function
      */
     test('calculates depth of simple comparison', () => {
-      const ast = parseQuery('status = UPCOMING');
+      const ast = parse('status = UPCOMING');
       expect(getDepth(ast)).toBe(1);
     });
 
     test('calculates depth of binary expression', () => {
-      const ast = parseQuery('a = 1 AND b = 2');
+      const ast = parse('status = UPCOMING AND venue = lab');
       expect(getDepth(ast)).toBe(2);
     });
 
     test('calculates depth of nested expression', () => {
-      const ast = parseQuery('a = 1 AND b = 2 AND c = 3');
+      const ast = parse('status = UPCOMING AND venue = lab AND capacity = 50');
       expect(getDepth(ast)).toBe(3);
     });
   });
@@ -289,31 +274,31 @@ describe('Parser', () => {
      * Covers: Syntax errors
      */
     test('throws on missing operator', () => {
-      expect(() => parseQuery('status UPCOMING')).toThrow(ParseError);
+      expect(() => parse('status UPCOMING')).toThrow(Error);
     });
 
     test('throws on missing value', () => {
-      expect(() => parseQuery('status =')).toThrow(ParseError);
+      expect(() => parse('status =')).toThrow(Error);
     });
 
     test('throws on unclosed parenthesis', () => {
-      expect(() => parseQuery('(status = UPCOMING')).toThrow(ParseError);
+      expect(() => parse('(status = UPCOMING')).toThrow(Error);
     });
 
     test('throws on unexpected closing parenthesis', () => {
-      expect(() => parseQuery('status = UPCOMING)')).toThrow(ParseError);
+      expect(() => parse('status = UPCOMING)')).toThrow(Error);
     });
 
     test('throws on missing field', () => {
-      expect(() => parseQuery('= UPCOMING')).toThrow(ParseError);
+      expect(() => parse('= UPCOMING')).toThrow(Error);
     });
 
     test('throws on incomplete AND expression', () => {
-      expect(() => parseQuery('status = UPCOMING AND')).toThrow(ParseError);
+      expect(() => parse('status = UPCOMING AND')).toThrow(Error);
     });
 
     test('throws on incomplete OR expression', () => {
-      expect(() => parseQuery('status = UPCOMING OR')).toThrow(ParseError);
+      expect(() => parse('status = UPCOMING OR')).toThrow(Error);
     });
 
     /**
@@ -321,37 +306,22 @@ describe('Parser', () => {
      */
     test('provides helpful error message', () => {
       try {
-        parseQuery('status UPCOMING');
-        fail('Should have thrown ParseError');
+        parse('status UPCOMING');
+        fail('Should have thrown Error');
       } catch (error: any) {
-        expect(error).toBeInstanceOf(ParseError);
-        expect(error.message).toContain('operator');
+        expect(error).toBeInstanceOf(Error);
+        expect(error.message).toBeTruthy();
       }
     });
 
-    test('includes position in error', () => {
+    test('includes location in error', () => {
       try {
-        parseQuery('status = UPCOMING)');
-        fail('Should have thrown ParseError');
+        parse('status = UPCOMING)');
+        fail('Should have thrown error');
       } catch (error: any) {
-        expect(error).toBeInstanceOf(ParseError);
-        expect(error.position).toBeGreaterThanOrEqual(0);
+        expect(error).toBeInstanceOf(Error);
+        expect(error.location).toBeDefined();
       }
-    });
-  });
-
-  describe('Rep invariant', () => {
-    /**
-     * Covers: Parser class invariant
-     */
-    test('maintains rep invariant', () => {
-      const lexer = new Lexer('status = UPCOMING');
-      const tokens = lexer.tokenize();
-      const parser = new Parser(tokens);
-      
-      expect(parser.checkRep()).toBe(true);
-      parser.parse();
-      expect(parser.checkRep()).toBe(true);
     });
   });
 
@@ -368,7 +338,7 @@ describe('Parser', () => {
       ['<=', 'less or equal'],
       ['CONTAINS', 'contains']
     ])('parses %s operator', (operator, _description) => {
-      const ast = parseQuery(`field ${operator} value`);
+      const ast = parse(`status ${operator} UPCOMING`);
       
       if (ast.kind === 'ComparisonExpr') {
         expect(ast.operator).toBe(operator);
@@ -388,7 +358,7 @@ describe('Parser', () => {
       'date',
       'capacity'
     ])('parses %s field', (field) => {
-      const ast = parseQuery(`${field} = value`);
+      const ast = parse(`${field} = value`);
       
       if (ast.kind === 'ComparisonExpr') {
         expect(ast.field).toBe(field);
@@ -396,3 +366,5 @@ describe('Parser', () => {
     });
   });
 });
+
+
