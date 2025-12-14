@@ -31,7 +31,9 @@ export async function registerUser(
         [id, eventId, userId, status, registered_at]
     );
 
-    saveDatabase();
+    // Note: saveDatabase is intentionally omitted here so callers can control
+    // transaction boundaries (commit/rollback). Callers should invoke
+    // saveDatabase after the transaction is committed.
 
     return {
         id,
