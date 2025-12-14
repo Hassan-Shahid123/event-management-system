@@ -39,8 +39,15 @@ const RegisterPage: React.FC = () => {
     try {
       await register({ name, email, password, role });
       navigate('/events');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Registration failed. Please try again.');
+    } catch (err: unknown) {
+      const apiError = err as { response?: { data?: { error?: string } } };
+      if (typeof apiError.response?.data?.error === 'string') {
+        setError(apiError.response.data.error);
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Registration failed. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
