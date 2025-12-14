@@ -103,6 +103,7 @@
   border: none;
   border-radius: var(--radius-lg);
   cursor: pointer;
+  
   font-weight: 600;
   transition: all 0.3s ease;
   box-shadow: var(--shadow-sm);
