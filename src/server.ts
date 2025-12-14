@@ -13,6 +13,7 @@ import {
   eventRoutes,
   registrationRoutes
 } from './routes';
+import { startStatusScheduler } from './services/statusScheduler';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -37,6 +38,8 @@ app.use('/api/registrations', registrationRoutes);
 app.listen(PORT, () => {
   console.log(`CampusConnect API Server running on http://localhost:${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
+  // Start background status synchronizer
+  startStatusScheduler();
 });
 
 export default app;

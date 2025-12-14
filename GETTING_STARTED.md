@@ -302,7 +302,7 @@ Repository functions handle all database operations. When building services:
 ```typescript
 // _/ Good - Use repository functions
 import { createUser, getUserByEmail } from './repositories';
-const user = await getUserByEmail('john@example.com');
+const user = await getUserByEmail('hassan@example.com');
 
 // X Bad - Don't write raw SQL in services
 const db = await getDatabase();
