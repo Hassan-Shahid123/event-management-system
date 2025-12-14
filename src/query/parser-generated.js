@@ -216,14 +216,14 @@ function peg$parse(input, options) {
 
   function peg$f0(expr) {    return expr;  }
   function peg$f1(left, right) {
-      return createBinaryExpr('OR', left, right);
+    return createBinaryExpr('OR', left, right);
   }
   function peg$f2(left, right) {
-      return createBinaryExpr('AND', left, right);
+    return createBinaryExpr('AND', left, right);
   }
   function peg$f3(expr) {    return expr;  }
   function peg$f4(field, op, value) {
-      return createComparisonExpr(field, op, value);
+    return createComparisonExpr(field, op, value);
   }
   function peg$f5() {    return 'CONTAINS';  }
   function peg$f6() {    return '>=';  }
@@ -239,7 +239,7 @@ function peg$parse(input, options) {
   function peg$f16() {    return 'date';  }
   function peg$f17() {    return 'capacity';  }
   function peg$f18(value) {
-      return new Date(value);
+    return new Date(value);
   }
   function peg$f19(value) {    return parseInt(value, 10);  }
   function peg$f20(value) {    return value;  }
