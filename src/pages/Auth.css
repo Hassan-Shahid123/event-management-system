@@ -4,28 +4,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 3rem 1rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: .5rem 1rem;
+  background: transparent;
 }
 
 .auth-card {
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(10px);
+  background: white;
   padding: 3rem 2.5rem;
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-2xl);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
   width: 100%;
   max-width: 480px;
   animation: fadeIn 0.5s ease-in-out;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--gray-200);
 }
 
 .auth-card h1 {
   text-align: center;
-  background: linear-gradient(135deg, var(--primary-600) 0%, var(--accent-600) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--oxford-blue);
   margin-bottom: 0.5rem;
   font-size: 2.5rem;
   font-weight: 800;
@@ -33,7 +29,7 @@
 
 .auth-card h2 {
   text-align: center;
-  color: var(--text-secondary);
+  color: var(--gray-600);
   margin-bottom: 2.5rem;
   font-size: 1.25rem;
   font-weight: 500;
@@ -49,20 +45,21 @@
 .auth-footer {
   text-align: center;
   margin-top: 2rem;
-  color: var(--text-secondary);
+  color: var(--gray-600);
   font-size: 1rem;
 }
 
 .auth-footer a {
-  color: var(--primary-600);
+  color: var(--oxford-blue);
   text-decoration: none;
   font-weight: 700;
   transition: all 0.3s ease;
 }
 
 .auth-footer a:hover {
-  color: var(--accent-600);
+  color: var(--oxford-blue);
   text-decoration: underline;
+  opacity: 0.8;
 }
 
 @media (max-width: 640px) {

@@ -111,23 +111,38 @@ const EventsPage: React.FC = () => {
         </div>
       ) : (
         <div className="events-grid">
-          {filteredEvents.map((event) => (
-            <Link to={`/events/${event.id}`} key={event.id} className="event-card">
-              <div className="event-header">
-                <h3>{event.title}</h3>
-                <span className={getStatusClass(event.status)}>{event.status}</span>
-              </div>
-              <p className="event-description">{event.description}</p>
-              <div className="event-details">
-                <div className="event-datetime">
-                  <strong>Start:</strong> {formatDateTime(event.start_datetime)}
+          {filteredEvents.map((event) => {
+            const canEdit = user?.role === 'ORGANIZER' || user?.role === 'ADMIN';
+            return (
+              <div key={event.id} className="event-card">
+                <div className="event-header">
+                  <Link to={`/events/${event.id}`} className="event-title-link">
+                    <h3>{event.title}</h3>
+                  </Link>
+                  <span className={getStatusClass(event.status)}>{event.status}</span>
                 </div>
-                <div className="event-datetime">
-                  <strong>End:</strong> {formatDateTime(event.end_datetime)}
+                <p className="event-description">{event.description}</p>
+                <div className="event-details">
+                  <div className="event-datetime">
+                    <strong>Start:</strong> {formatDateTime(event.start_datetime)}
+                  </div>
+                  <div className="event-datetime">
+                    <strong>End:</strong> {formatDateTime(event.end_datetime)}
+                  </div>
+                </div>
+                <div className="event-actions">
+                  <Link to={`/events/${event.id}`} className="btn-secondary btn-compact">
+                    View Details
+                  </Link>
+                  {canEdit && (
+                    <Link to={`/events/${event.id}/edit`} className="btn-primary btn-compact">
+                      Edit Event
+                    </Link>
+                  )}
                 </div>
               </div>
-            </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

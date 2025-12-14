@@ -20,6 +20,10 @@ const VenuesPage: React.FC = () => {
   const [type, setType] = useState<VenueType>('CLASSROOM');
   const [capacity, setCapacity] = useState<number | undefined>(undefined);
   const [formLoading, setFormLoading] = useState(false);
+  const [editingVenueId, setEditingVenueId] = useState<string | null>(null);
+  const [editLocation, setEditLocation] = useState('');
+  const [editType, setEditType] = useState<VenueType>('CLASSROOM');
+  const [editCapacity, setEditCapacity] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     loadVenues();
@@ -58,6 +62,41 @@ const VenuesPage: React.FC = () => {
       loadVenues();
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to create venue');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const startEditVenue = (venue: Venue) => {
+    setEditingVenueId(venue.id);
+    setEditLocation(venue.location);
+    setEditType(venue.type);
+    setEditCapacity(venue.capacity || undefined);
+  };
+
+  const cancelEdit = () => {
+    setEditingVenueId(null);
+    setEditLocation('');
+    setEditType('CLASSROOM');
+    setEditCapacity(undefined);
+  };
+
+  const handleUpdateVenue = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!editingVenueId) return;
+    setFormLoading(true);
+
+    try {
+      await venuesAPI.update(editingVenueId, {
+        location: editLocation,
+        type: editType,
+        capacity: editType === 'OPENAIR' ? undefined : editCapacity,
+      });
+      alert('Venue updated successfully');
+      cancelEdit();
+      loadVenues();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to update venue');
     } finally {
       setFormLoading(false);
     }
@@ -170,22 +209,102 @@ const VenuesPage: React.FC = () => {
               <div key={venue.id} className="venue-card">
                 <div className="venue-header">
                   <h3>{venue.location}</h3>
-                  <button
-                    onClick={() => handleDeleteVenue(venue.id)}
-                    className="btn-danger-small"
-                  >
-                    Delete
-                  </button>
+                  <div className="venue-actions">
+                    {editingVenueId === venue.id ? (
+                      <button onClick={cancelEdit} className="btn-secondary btn-compact" type="button">
+                        Cancel
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => startEditVenue(venue)}
+                          className="btn-secondary btn-compact"
+                          type="button"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteVenue(venue.id)}
+                          className="btn-danger-small"
+                          type="button"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="venue-details">
-                  <div><strong>Type:</strong> {venue.type}</div>
-                  {venue.capacity && (
-                    <div><strong>Capacity:</strong> {venue.capacity} people</div>
-                  )}
-                  {venue.type === 'OPENAIR' && (
-                    <div><strong>Capacity:</strong> Unlimited</div>
-                  )}
-                </div>
+                {editingVenueId === venue.id ? (
+                  <form className="venue-edit-form" onSubmit={handleUpdateVenue}>
+                    <div className="form-group">
+                      <label htmlFor={`edit-location-${venue.id}`}>Location *</label>
+                      <input
+                        id={`edit-location-${venue.id}`}
+                        type="text"
+                        value={editLocation}
+                        onChange={(e) => setEditLocation(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor={`edit-type-${venue.id}`}>Venue Type *</label>
+                      <select
+                        id={`edit-type-${venue.id}`}
+                        value={editType}
+                        onChange={(e) => setEditType(e.target.value as VenueType)}
+                        required
+                      >
+                        <option value="LAB">Lab</option>
+                        <option value="EXAM_HALL">Exam Hall</option>
+                        <option value="LECTURE_HALL">Lecture Hall</option>
+                        <option value="SMART_CLASSROOM">Smart Classroom</option>
+                        <option value="CLASSROOM">Classroom</option>
+                        <option value="MEETING_HALL">Meeting Hall</option>
+                        <option value="OPENAIR">Open Air</option>
+                        <option value="SEMINAR">Seminar</option>
+                        <option value="AUDITORIUM">Auditorium</option>
+                        <option value="CAFE">Cafe</option>
+                      </select>
+                    </div>
+
+                    {editType !== 'OPENAIR' && (
+                      <div className="form-group">
+                        <label htmlFor={`edit-capacity-${venue.id}`}>Capacity *</label>
+                        <input
+                          id={`edit-capacity-${venue.id}`}
+                          type="number"
+                          value={editCapacity || ''}
+                          onChange={(e) => setEditCapacity(Number(e.target.value))}
+                          required
+                          min="1"
+                        />
+                      </div>
+                    )}
+                    <div className="venue-actions">
+                      <button onClick={cancelEdit} className="btn-secondary btn-compact" type="button">
+                        Cancel
+                      </button>
+                      <button
+                        className="btn-primary btn-compact"
+                        type="submit"
+                        disabled={formLoading}
+                      >
+                        {formLoading ? 'Saving...' : 'Save Changes'}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="venue-details">
+                    <div><strong>Type:</strong> {venue.type}</div>
+                    {venue.capacity && (
+                      <div><strong>Capacity:</strong> {venue.capacity} people</div>
+                    )}
+                    {venue.type === 'OPENAIR' && (
+                      <div><strong>Capacity:</strong> Unlimited</div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

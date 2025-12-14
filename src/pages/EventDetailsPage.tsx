@@ -76,6 +76,11 @@ const EventDetailsPage: React.FC = () => {
       return;
     }
 
+    if (user.role !== 'STUDENT') {
+      alert('Only students can register for events.');
+      return;
+    }
+
     if (!id) {
       alert('Event ID is missing');
       return;
@@ -139,6 +144,8 @@ const EventDetailsPage: React.FC = () => {
     if (!user || !event) return false;
     return user.role === 'ADMIN' || event.organizer_id === user.id;
   };
+
+  const isStudent = user?.role === 'STUDENT';
 
   const formatDateTime = (dateStr: string) => {
     try {
@@ -245,7 +252,7 @@ const EventDetailsPage: React.FC = () => {
             )}
           </section>
 
-          {user && event.status === 'UPCOMING' && (
+          {user && event.status === 'UPCOMING' && isStudent && (
             <div className="registration-actions">
               {isRegistered ? (
                 <button
@@ -264,6 +271,12 @@ const EventDetailsPage: React.FC = () => {
                   {actionLoading ? 'Processing...' : 'Register for Event'}
                 </button>
               )}
+            </div>
+          )}
+
+          {user && event.status === 'UPCOMING' && !isStudent && (
+            <div className="info-message">
+              Registration is available to students only.
             </div>
           )}
 

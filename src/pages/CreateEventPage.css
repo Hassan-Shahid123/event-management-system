@@ -1,29 +1,87 @@
 /* Create Event Page Styles */
+
 .create-event-page {
   width: 100%;
   animation: fadeIn 0.5s ease-in-out;
+  padding: 2.5rem 1rem 3.5rem;
 }
 
 .form-container {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
+  background: white;
   padding: 3rem 2.5rem;
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-2xl);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
   max-width: 900px;
   margin: 0 auto;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--gray-200);
 }
 
 .form-container h1 {
   margin-bottom: 2.5rem;
   font-size: 2.5rem;
-  background: linear-gradient(135deg, var(--primary-600) 0%, var(--accent-600) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--gray-900);
   font-weight: 800;
   text-align: center;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  font-weight: 700;
+  color: var(--gray-800);
+  font-size: 0.95rem;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  background: white;
+  color: var(--gray-900);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--oxford-blue);
+  box-shadow: 0 0 0 4px rgba(0, 33, 71, 0.12);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: var(--gray-500);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+}
+
+.info-message {
+  margin: 0.35rem 0 0.75rem;
+  color: var(--gray-700);
+  font-size: 0.95rem;
 }
 
 .form-container textarea {
@@ -39,5 +97,9 @@
   
   .form-container h1 {
     font-size: 2rem;
+  }
+
+  .form-actions {
+    flex-direction: column;
   }
 }

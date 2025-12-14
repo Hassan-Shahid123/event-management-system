@@ -10,18 +10,15 @@
   align-items: center;
   margin-bottom: 3rem;
   padding: 2rem;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(10px);
+  background: white;
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--gray-200);
 }
 
 .page-header h1 {
   font-size: 2.5rem;
-  background: linear-gradient(135deg, var(--primary-600) 0%, var(--accent-600) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--gray-900);
   margin: 0;
 }
 
@@ -33,24 +30,23 @@
   width: 100%;
   max-width: 600px;
   padding: 1rem 1.5rem;
-  border: 2px solid var(--border-light);
-  border-radius: var(--radius-lg);
+  border: 2px solid var(--gray-200);
+  border-radius: 12px;
   font-size: 1.125rem;
   transition: all 0.3s ease;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
+  background: white;
   box-shadow: var(--shadow-sm);
+  color: var(--gray-900);
 }
 
 .search-input:focus {
   outline: none;
-  border-color: var(--primary-600);
-  box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1), var(--shadow-md);
-  background: white;
+  border-color: var(--oxford-blue);
+  box-shadow: 0 0 0 3px rgba(0, 33, 71, 0.1), var(--shadow-md);
 }
 
 .search-input::placeholder {
-  color: var(--text-tertiary);
+  color: var(--gray-400);
 }
 
 .events-grid {
@@ -60,18 +56,26 @@
 }
 
 .event-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
+  background: white;
   padding: 2rem;
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-  transition: all 0.3s ease;
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   text-decoration: none;
-  color: inherit;
+  color: var(--gray-900);
   display: block;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--gray-200);
   position: relative;
   overflow: hidden;
+}
+
+.event-title-link {
+  color: var(--gray-900);
+  text-decoration: none;
+}
+
+.event-title-link:hover {
+  color: var(--oxford-blue);
 }
 
 .event-card::before {
@@ -80,16 +84,16 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 4px;
-  background: linear-gradient(135deg, var(--primary-600) 0%, var(--accent-600) 100%);
+  height: 3px;
+  background: var(--oxford-blue);
   transform: scaleX(0);
   transition: transform 0.3s ease;
 }
 
 .event-card:hover {
-  box-shadow: var(--shadow-2xl);
-  transform: translateY(-8px);
-  border-color: var(--primary-200);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-4px);
+  border-color: var(--oxford-blue);
 }
 
 .event-card:hover::before {
@@ -107,13 +111,13 @@
 .event-header h3 {
   margin: 0;
   font-size: 1.5rem;
-  color: var(--text-primary);
+  color: var(--gray-900);
   flex: 1;
   font-weight: 700;
 }
 
 .event-description {
-  color: var(--text-secondary);
+  color: var(--gray-600);
   margin-bottom: 1.5rem;
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -126,7 +130,19 @@
 .event-details {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
-  border-top: 2px solid var(--border-light);
+  border-top: 2px solid var(--gray-200);
+}
+
+.event-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.btn-compact {
+  padding: 0.6rem 1rem;
+  font-size: 0.95rem;
 }
 
 .event-info-row {
@@ -134,19 +150,19 @@
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--gray-600);
   font-size: 0.95rem;
 }
 
 .event-info-row svg,
 .event-info-row .icon {
-  color: var(--primary-600);
+  color: var(--oxford-blue);
   font-size: 1.125rem;
 }
 
 .event-datetime {
   font-size: 0.95rem;
-  color: var(--text-secondary);
+  color: var(--gray-600);
   margin-bottom: 0.75rem;
   display: flex;
   align-items: center;
@@ -154,28 +170,28 @@
 }
 
 .event-datetime strong {
-  color: var(--text-primary);
+  color: var(--gray-900);
   font-weight: 600;
 }
 
 .no-events {
   text-align: center;
   padding: 4rem 2rem;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
+  background: white;
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--gray-200);
 }
 
 .no-events-title {
   font-size: 1.75rem;
-  color: var(--text-primary);
+  color: var(--gray-900);
   margin-bottom: 0.75rem;
   font-weight: 700;
 }
 
 .no-events-description {
-  color: var(--text-secondary);
+  color: var(--gray-600);
   font-size: 1.125rem;
 }
 
