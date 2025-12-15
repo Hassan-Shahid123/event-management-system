@@ -67,12 +67,16 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
   // Hash password
   const password_hash = await bcrypt.hash(input.password, SALT_ROUNDS);
 
+  // Determine status: PENDING for organizers, APPROVED for students and admins
+  const status = input.role === 'ORGANIZER' ? 'PENDING' : 'APPROVED';
+
   // Create user
   const user = await userRepository.createUser({
     name: input.name,
     email: input.email,
     password_hash,
     role: input.role,
+    status,
   });
 
   // Generate token
@@ -100,6 +104,15 @@ export async function login(input: LoginInput): Promise<AuthResult> {
   const user = await userRepository.getUserByEmail(input.email);
   if (!user) {
     throw new Error('Invalid email or password');
+  }
+
+  // Check user status
+  if (user.status === 'PENDING') {
+    throw new Error('Your account is awaiting admin approval');
+  }
+  
+  if (user.status === 'REJECTED') {
+    throw new Error('Your account request has been rejected. Please contact admin for more information');
   }
 
   // Verify password

@@ -176,6 +176,97 @@ export function hasPermission(user: User, requiredRole: UserRole | UserRole[]): 
 }
 
 /**
+ * Retrieves all pending organizer requests.
+ * @returns list of organizer users with status PENDING; effects: read-only.
+ */
+export async function getPendingOrganizerRequests(): Promise<Omit<User, 'password_hash'>[]> {
+  const requests = await userRepository.getPendingOrganizerRequests();
+  return removePasswordHashes(requests);
+}
+
+/**
+ * Approves an organizer request.
+ * @param userId organizer user id to approve.
+ * @param adminId requires existing ADMIN performing the approval.
+ * @returns approved user without password_hash; effects: sets status to APPROVED.
+ * @throws Error when user not found, not pending, or admin lacks permission.
+ */
+export async function approveOrganizerRequest(
+  userId: string,
+  adminId: string
+): Promise<Omit<User, 'password_hash'>> {
+  // Verify admin permissions
+  const admin = await userRepository.getUserById(adminId);
+  if (!admin) {
+    throw new Error('Admin user not found');
+  }
+  
+  if (admin.role !== 'ADMIN') {
+    throw new Error('Only admins can approve organizer requests');
+  }
+
+  // Get the user to verify they are pending
+  const user = await userRepository.getUserById(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  if (user.role !== 'ORGANIZER') {
+    throw new Error('User is not an organizer');
+  }
+
+  if (user.status !== 'PENDING') {
+    throw new Error('User request is not pending');
+  }
+
+  // Approve the organizer
+  const approvedUser = await userRepository.approveOrganizer(userId, adminId);
+  
+  return removePasswordHash(approvedUser);
+}
+
+/**
+ * Rejects an organizer request.
+ * @param userId organizer user id to reject.
+ * @param adminId requires existing ADMIN performing the rejection.
+ * @returns rejected user without password_hash; effects: sets status to REJECTED.
+ * @throws Error when user not found, not pending, or admin lacks permission.
+ */
+export async function rejectOrganizerRequest(
+  userId: string,
+  adminId: string
+): Promise<Omit<User, 'password_hash'>> {
+  // Verify admin permissions
+  const admin = await userRepository.getUserById(adminId);
+  if (!admin) {
+    throw new Error('Admin user not found');
+  }
+  
+  if (admin.role !== 'ADMIN') {
+    throw new Error('Only admins can reject organizer requests');
+  }
+
+  // Get the user to verify they are pending
+  const user = await userRepository.getUserById(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  if (user.role !== 'ORGANIZER') {
+    throw new Error('User is not an organizer');
+  }
+
+  if (user.status !== 'PENDING') {
+    throw new Error('User request is not pending');
+  }
+
+  // Reject the organizer
+  const rejectedUser = await userRepository.rejectOrganizer(userId, adminId);
+  
+  return removePasswordHash(rejectedUser);
+}
+
+/**
  * Updates a user's role; only admins may perform this action.
  * @param userId target user id.
  * @param newRole requires valid role; prevents admin self-demotion.

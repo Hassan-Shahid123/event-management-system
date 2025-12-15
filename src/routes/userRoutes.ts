@@ -36,6 +36,19 @@ router.get('/stats', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/users/pending-organizers
+ * Get all pending organizer requests (admin only)
+ */
+router.get('/pending-organizers', async (req: Request, res: Response) => {
+  try {
+    const requests = await userService.getPendingOrganizerRequests();
+    res.json(requests);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/users/:id
  * Get user by ID
  */
@@ -72,6 +85,52 @@ router.delete('/:id', async (req: Request, res: Response) => {
   try {
     await userService.deleteUser(req.params.id);
     res.json({ message: 'User deleted successfully' });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/users/:id/approve
+ * Approve an organizer request (admin only)
+ */
+router.post('/:id/approve', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const token = authHeader.substring(7);
+    const { verifyToken } = await import('../services/authService');
+    const payload = verifyToken(token);
+    const adminId = payload.userId;
+
+    const user = await userService.approveOrganizerRequest(req.params.id, adminId);
+    res.json({ message: 'Organizer request approved successfully', user });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/users/:id/reject
+ * Reject an organizer request (admin only)
+ */
+router.post('/:id/reject', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const token = authHeader.substring(7);
+    const { verifyToken } = await import('../services/authService');
+    const payload = verifyToken(token);
+    const adminId = payload.userId;
+
+    const user = await userService.rejectOrganizerRequest(req.params.id, adminId);
+    res.json({ message: 'Organizer request rejected successfully', user });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }

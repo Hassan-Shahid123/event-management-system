@@ -5,7 +5,7 @@
  */
 
 import { getDatabase, saveDatabase } from '../database';
-import { User, Role } from '../types';
+import { User, Role, UserStatus } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { getFirstRow, getAllRows, getCountValue } from '../utils/dbHelpers';
 
@@ -19,22 +19,28 @@ export async function createUser(userData: {
     email: string;
     password_hash: string;
     role: Role;
+    status?: UserStatus;
 }): Promise<User> {
     const db = await getDatabase();
     const id = uuidv4();
     const created_at = new Date().toISOString();
+    const status = userData.status || 'APPROVED';
 
     db.run(
-        `INSERT INTO users (id, name, email, password_hash, role, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [id, userData.name, userData.email, userData.password_hash, userData.role, created_at]
+        `INSERT INTO users (id, name, email, password_hash, role, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [id, userData.name, userData.email, userData.password_hash, userData.role, status, created_at]
     );
 
     saveDatabase();
 
     return {
         id,
-        ...userData,
+        name: userData.name,
+        email: userData.email,
+        password_hash: userData.password_hash,
+        role: userData.role,
+        status,
         created_at
     };
 }
@@ -60,7 +66,10 @@ export async function getUserById(id: string): Promise<User | null> {
         email: row[2] as string,
         password_hash: row[3] as string,
         role: row[4] as Role,
-        created_at: row[5] as string
+        status: row[5] as UserStatus,
+        approved_by: row[6] as string | undefined,
+        approved_at: row[7] as string | undefined,
+        created_at: row[8] as string
     };
 }
 
@@ -85,7 +94,10 @@ export async function getUserByEmail(email: string): Promise<User | null> {
         email: row[2] as string,
         password_hash: row[3] as string,
         role: row[4] as Role,
-        created_at: row[5] as string
+        status: row[5] as UserStatus,
+        approved_by: row[6] as string | undefined,
+        approved_at: row[7] as string | undefined,
+        created_at: row[8] as string
     };
 }
 
@@ -103,7 +115,10 @@ export async function getAllUsers(): Promise<User[]> {
         email: row[2] as string,
         password_hash: row[3] as string,
         role: row[4] as Role,
-        created_at: row[5] as string
+        status: row[5] as UserStatus,
+        approved_by: row[6] as string | undefined,
+        approved_at: row[7] as string | undefined,
+        created_at: row[8] as string
     }));
 }
 
@@ -124,7 +139,10 @@ export async function getUsersByRole(role: Role): Promise<User[]> {
         email: row[2] as string,
         password_hash: row[3] as string,
         role: row[4] as Role,
-        created_at: row[5] as string
+        status: row[5] as UserStatus,
+        approved_by: row[6] as string | undefined,
+        approved_at: row[7] as string | undefined,
+        created_at: row[8] as string
     }));
 }
 
@@ -206,6 +224,82 @@ export async function deleteUser(id: string): Promise<boolean> {
 export async function emailExists(email: string): Promise<boolean> {
     const user = await getUserByEmail(email);
     return user !== null;
+}
+
+/**
+ * Returns all pending organizer requests (users with role=ORGANIZER and status=PENDING).
+ * @returns list of pending organizers ordered by created_at; effects: read-only.
+ */
+export async function getPendingOrganizerRequests(): Promise<User[]> {
+    const db = await getDatabase();
+    
+    const result = db.exec(
+        `SELECT * FROM users WHERE role = 'ORGANIZER' AND status = 'PENDING' ORDER BY created_at ASC`
+    );
+
+    return getAllRows(result).map(row => ({
+        id: row[0] as string,
+        name: row[1] as string,
+        email: row[2] as string,
+        password_hash: row[3] as string,
+        role: row[4] as Role,
+        status: row[5] as UserStatus,
+        approved_by: row[6] as string | undefined,
+        approved_at: row[7] as string | undefined,
+        created_at: row[8] as string
+    }));
+}
+
+/**
+ * Approves an organizer request by setting status to APPROVED.
+ * @param userId user id to approve.
+ * @param adminId admin user id who approved.
+ * @returns updated user; effects: writes to users table.
+ * @throws Error when user not found or not pending.
+ */
+export async function approveOrganizer(userId: string, adminId: string): Promise<User> {
+    const db = await getDatabase();
+    const approved_at = new Date().toISOString();
+
+    db.run(
+        `UPDATE users SET status = 'APPROVED', approved_by = ?, approved_at = ? WHERE id = ? AND status = 'PENDING'`,
+        [adminId, approved_at, userId]
+    );
+
+    saveDatabase();
+    
+    const updated = await getUserById(userId);
+    if (!updated) {
+        throw new Error('User not found after approval');
+    }
+    
+    return updated;
+}
+
+/**
+ * Rejects an organizer request by setting status to REJECTED.
+ * @param userId user id to reject.
+ * @param adminId admin user id who rejected.
+ * @returns updated user; effects: writes to users table.
+ * @throws Error when user not found or not pending.
+ */
+export async function rejectOrganizer(userId: string, adminId: string): Promise<User> {
+    const db = await getDatabase();
+    const approved_at = new Date().toISOString();
+
+    db.run(
+        `UPDATE users SET status = 'REJECTED', approved_by = ?, approved_at = ? WHERE id = ? AND status = 'PENDING'`,
+        [adminId, approved_at, userId]
+    );
+
+    saveDatabase();
+    
+    const updated = await getUserById(userId);
+    if (!updated) {
+        throw new Error('User not found after rejection');
+    }
+    
+    return updated;
 }
 
 /**

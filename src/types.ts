@@ -20,6 +20,14 @@ export type Role = 'STUDENT' | 'ORGANIZER' | 'ADMIN';
 export type UserRole = Role; // Alias for compatibility
 
 /**
+ * UserStatus represents the approval status of a user account.
+ * PENDING: User has registered but awaits admin approval (applies to ORGANIZER role)
+ * APPROVED: User account is active and can access the system
+ * REJECTED: User registration was denied by admin
+ */
+export type UserStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+/**
  * EventStatus represents the lifecycle state of an event.
  * Valid transitions: UPCOMING -> {INPROGRESS, CANCELLED}; INPROGRESS -> {COMPLETED, CANCELLED}.
  * COMPLETED and CANCELLED are terminal states.
@@ -73,6 +81,8 @@ export type NotificationType =
  * - email is unique across all users
  * - password_hash should never be returned to clients (use Omit<User, 'password_hash'>)
  * - created_at is immutable after creation
+ * - ORGANIZER role users start with PENDING status and require admin approval
+ * - STUDENT and ADMIN roles are auto-approved (status = APPROVED)
  */
 export interface User {
     id: string;
@@ -80,6 +90,9 @@ export interface User {
     email: string;
     password_hash: string;
     role: Role;
+    status: UserStatus;
+    approved_by?: string;  // User ID of admin who approved (null for auto-approved)
+    approved_at?: string;  // Timestamp of approval (null for pending users)
     created_at: string;
 }
 
