@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Graduation Cap -->
+  <!-- Cap Board (Top) -->
+  <polygon points="32,20 8,28 32,36 56,28" fill="#4A5568" stroke="#2D3748" stroke-width="1"/>
+  
+  <!-- Cap Board (Bottom Shadow) -->
+  <polygon points="32,36 8,28 8,30 32,38 56,30 56,28" fill="#2D3748"/>
+  
+  <!-- Tassel String -->
+  <line x1="32" y1="20" x2="32" y2="28" stroke="#FFD700" stroke-width="1.5"/>
+  
+  <!-- Tassel -->
+  <circle cx="32" cy="28" r="2.5" fill="#FFD700"/>
+  <line x1="32" y1="30" x2="29" y2="34" stroke="#FFD700" stroke-width="1.5"/>
+  <line x1="32" y1="30" x2="32" y2="35" stroke="#FFD700" stroke-width="1.5"/>
+  <line x1="32" y1="30" x2="35" y2="34" stroke="#FFD700" stroke-width="1.5"/>
+  
+  <!-- Cap Base -->
+  <ellipse cx="32" cy="38" rx="10" ry="3" fill="#4A5568"/>
+  <rect x="22" y="38" width="20" height="8" fill="#4A5568" stroke="#2D3748" stroke-width="1"/>
+  <ellipse cx="32" cy="46" rx="10" ry="3" fill="#2D3748"/>
+</svg>

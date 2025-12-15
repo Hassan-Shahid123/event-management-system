@@ -14,7 +14,13 @@ const RegisterPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<Role>('STUDENT');
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState<{
+    name?: string;
+    email?: string;
+    password?: string;
+    confirmPassword?: string;
+    general?: string;
+  }>({});
   const [isLoading, setIsLoading] = useState(false);
   
   const { register } = useAuth();
@@ -22,15 +28,38 @@ const RegisterPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setErrors({});
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
+    const newErrors: typeof errors = {};
+
+    // Validate name
+    if (!name.trim()) {
+      newErrors.name = 'Name is required';
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    // Validate email
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = 'Please enter a valid email';
+    }
+
+    // Validate password
+    if (!password) {
+      newErrors.password = 'Password is required';
+    } else if (password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+
+    // Validate confirm password
+    if (!confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password';
+    } else if (password !== confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
@@ -41,12 +70,19 @@ const RegisterPage: React.FC = () => {
       navigate('/events');
     } catch (err: unknown) {
       const apiError = err as { response?: { data?: { error?: string } } };
-      if (typeof apiError.response?.data?.error === 'string') {
-        setError(apiError.response.data.error);
-      } else if (err instanceof Error) {
-        setError(err.message);
+      const errorMsg = typeof apiError.response?.data?.error === 'string'
+        ? apiError.response.data.error
+        : err instanceof Error
+        ? err.message
+        : 'Registration failed. Please try again.';
+      
+      // Try to map API errors to specific fields
+      if (errorMsg.toLowerCase().includes('email')) {
+        setErrors({ email: errorMsg });
+      } else if (errorMsg.toLowerCase().includes('password')) {
+        setErrors({ password: errorMsg });
       } else {
-        setError('Registration failed. Please try again.');
+        setErrors({ general: errorMsg });
       }
     } finally {
       setIsLoading(false);
@@ -59,7 +95,7 @@ const RegisterPage: React.FC = () => {
         <h1>CampusConnect</h1>
         <h2>Register</h2>
         
-        {error && <div className="error-message">{error}</div>}
+        {errors.general && <div className="error-message">{errors.general}</div>}
         
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -71,7 +107,9 @@ const RegisterPage: React.FC = () => {
               onChange={(e) => setName(e.target.value)}
               required
               placeholder="Your Name"
+              className={errors.name ? 'input-error' : ''}
             />
+            {errors.name && <span className="field-error">{errors.name}</span>}
           </div>
 
           <div className="form-group">
@@ -83,7 +121,9 @@ const RegisterPage: React.FC = () => {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="your.email@example.com"
+              className={errors.email ? 'input-error' : ''}
             />
+            {errors.email && <span className="field-error">{errors.email}</span>}
           </div>
 
           <div className="form-group">
@@ -95,7 +135,9 @@ const RegisterPage: React.FC = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
               placeholder="At least 6 characters"
+              className={errors.password ? 'input-error' : ''}
             />
+            {errors.password && <span className="field-error">{errors.password}</span>}
           </div>
 
           <div className="form-group">
@@ -107,7 +149,9 @@ const RegisterPage: React.FC = () => {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               placeholder="Re-enter password"
+              className={errors.confirmPassword ? 'input-error' : ''}
             />
+            {errors.confirmPassword && <span className="field-error">{errors.confirmPassword}</span>}
           </div>
 
           <div className="form-group">

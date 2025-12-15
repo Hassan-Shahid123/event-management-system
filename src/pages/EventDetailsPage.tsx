@@ -29,6 +29,7 @@ const EventDetailsPage: React.FC = () => {
     if (id) {
       loadEventDetails();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadEventDetails = async () => {

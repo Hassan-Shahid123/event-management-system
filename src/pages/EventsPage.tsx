@@ -30,6 +30,7 @@ const EventsPage: React.FC = () => {
     } else {
       setFilteredEvents(events);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, events]);
 
   const loadEvents = async () => {

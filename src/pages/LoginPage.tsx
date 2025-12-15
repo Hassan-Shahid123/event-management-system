@@ -10,7 +10,11 @@ import './Auth.css';
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+    general?: string;
+  }>({});
   const [isLoading, setIsLoading] = useState(false);
   
   const { login } = useAuth();
@@ -18,14 +22,42 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setErrors({});
+    
+    const newErrors: typeof errors = {};
+
+    // Validate email
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+    }
+
+    // Validate password
+    if (!password) {
+      newErrors.password = 'Password is required';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       await login({ email, password });
       navigate('/events');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed. Please try again.');
+    } catch (err) {
+      const apiError = err as { response?: { data?: { error?: string } } };
+      const errorMsg = apiError.response?.data?.error || 'Login failed. Please try again.';
+      
+      // Map to field or general error
+      if (errorMsg.toLowerCase().includes('email')) {
+        setErrors({ email: errorMsg });
+      } else if (errorMsg.toLowerCase().includes('password')) {
+        setErrors({ password: errorMsg });
+      } else {
+        setErrors({ general: errorMsg });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -37,7 +69,7 @@ const LoginPage: React.FC = () => {
         <h1>CampusConnect</h1>
         <h2>Login</h2>
         
-        {error && <div className="error-message">{error}</div>}
+        {errors.general && <div className="error-message">{errors.general}</div>}
         
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -49,7 +81,9 @@ const LoginPage: React.FC = () => {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="your.email@example.com"
+              className={errors.email ? 'input-error' : ''}
             />
+            {errors.email && <span className="field-error">{errors.email}</span>}
           </div>
 
           <div className="form-group">
@@ -61,7 +95,9 @@ const LoginPage: React.FC = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
               placeholder="Enter your password"
+              className={errors.password ? 'input-error' : ''}
             />
+            {errors.password && <span className="field-error">{errors.password}</span>}
           </div>
 
           <button type="submit" disabled={isLoading} className="btn-primary">

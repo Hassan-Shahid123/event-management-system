@@ -11,6 +11,7 @@ import RegisterPage from './pages/RegisterPage';
 import EventsPage from './pages/EventsPage';
 import EventDetailsPage from './pages/EventDetailsPage';
 import CreateEventPage from './pages/CreateEventPage';
+import EditEventPage from './pages/EditEventPage';
 import MyRegistrationsPage from './pages/MyRegistrationsPage';
 import VenuesPage from './pages/VenuesPage';
 import './App.css';
@@ -49,6 +50,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <CreateEventPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/events/:id/edit"
+                element={
+                  <ProtectedRoute>
+                    <EditEventPage />
                   </ProtectedRoute>
                 }
               />

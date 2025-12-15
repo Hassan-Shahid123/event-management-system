@@ -1,19 +1,21 @@
 /**
- * Create Event Page
- * Form to create a new event (ORGANIZER/ADMIN only)
+ * Edit Event Page
+ * Form to edit an existing event (ORGANIZER/ADMIN only)
  */
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { eventsAPI, venuesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import type { Venue } from '../types';
-import './CreateEventPage.css';
+import type { Event, Venue } from '../types';
+import './EditEventPage.css';
 
-const CreateEventPage: React.FC = () => {
+const EditEventPage: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const [event, setEvent] = useState<Event | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [startDatetime, setStartDatetime] = useState('');
@@ -22,35 +24,83 @@ const CreateEventPage: React.FC = () => {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [availableVenues, setAvailableVenues] = useState<Venue[]>([]);
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
 
   useEffect(() => {
-    loadVenues();
-  }, []);
+    if (id) {
+      loadEventAndVenues();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   useEffect(() => {
-    if (startDatetime && endDatetime) {
+    if (startDatetime && endDatetime && event) {
       checkVenueAvailability();
     } else {
       setAvailableVenues(venues);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDatetime, endDatetime, venues]);
+  }, [startDatetime, endDatetime, venues, event]);
 
-  const loadVenues = async () => {
+  const loadEventAndVenues = async () => {
+    if (!id) {
+      setError('Event ID is missing');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const data = await venuesAPI.getAll();
-      setVenues(data);
-      setAvailableVenues(data);
-    } catch {
-      setError('Failed to load venues');
+      setIsLoading(true);
+      setError('');
+
+      // Load event data
+      const eventData = await eventsAPI.getById(id);
+      setEvent(eventData);
+
+      // Check permissions
+      if (user && user.role !== 'ADMIN' && eventData.organizer_id !== user.id) {
+        setError('You do not have permission to edit this event');
+        setIsLoading(false);
+        return;
+      }
+
+      // Pre-populate form fields
+      setTitle(eventData.title);
+      setDescription(eventData.description);
+      
+      // Convert ISO strings to datetime-local format
+      const startDate = new Date(eventData.start_datetime);
+      const endDate = new Date(eventData.end_datetime);
+      setStartDatetime(formatDateTimeLocal(startDate));
+      setEndDatetime(formatDateTimeLocal(endDate));
+      setVenueId(eventData.venue_id);
+
+      // Load venues
+      const venuesData = await venuesAPI.getAll();
+      setVenues(venuesData);
+      setAvailableVenues(venuesData);
+
+    } catch (err: any) {
+      console.error('Failed to load event:', err);
+      setError(err.response?.data?.error || 'Failed to load event');
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const formatDateTimeLocal = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   const checkVenueAvailability = async () => {
-    // Validate datetime inputs before making API call
-    if (!startDatetime || !endDatetime) {
+    if (!startDatetime || !endDatetime || !event) {
       setAvailableVenues(venues);
       return;
     }
@@ -58,13 +108,11 @@ const CreateEventPage: React.FC = () => {
     const startDate = new Date(startDatetime);
     const endDate = new Date(endDatetime);
 
-    // Check if dates are valid
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
       setAvailableVenues(venues);
       return;
     }
 
-    // Check if end is after start
     if (endDate <= startDate) {
       setAvailableVenues(venues);
       return;
@@ -72,12 +120,22 @@ const CreateEventPage: React.FC = () => {
 
     try {
       setCheckingAvailability(true);
-      // Convert datetime-local format to ISO string
       const startISO = startDate.toISOString();
       const endISO = endDate.toISOString();
+      
+      // Get available venues excluding current event
       const available = await venuesAPI.getAvailable(startISO, endISO);
-      setAvailableVenues(available);
-    } catch {
+      
+      // Include current venue even if it appears unavailable
+      // (since the current event is occupying it)
+      const currentVenue = venues.find(v => v.id === event.venue_id);
+      if (currentVenue && !available.find(v => v.id === currentVenue.id)) {
+        setAvailableVenues([...available, currentVenue]);
+      } else {
+        setAvailableVenues(available);
+      }
+    } catch (err) {
+      console.error('Failed to check venue availability:', err);
       setAvailableVenues(venues);
     } finally {
       setCheckingAvailability(false);
@@ -88,7 +146,7 @@ const CreateEventPage: React.FC = () => {
     e.preventDefault();
     setError('');
 
-    if (!user) {
+    if (!user || !id) {
       setError('You must be logged in');
       return;
     }
@@ -98,44 +156,56 @@ const CreateEventPage: React.FC = () => {
       return;
     }
 
-    setIsLoading(true);
+    setIsSaving(true);
 
     try {
-      // Convert datetime-local format to ISO string
       const startISO = new Date(startDatetime).toISOString();
       const endISO = new Date(endDatetime).toISOString();
       
-      const event = await eventsAPI.create({
+      await eventsAPI.update(id, {
         title,
         description,
         start_datetime: startISO,
         end_datetime: endISO,
         venue_id: venueId,
-        organizer_id: user.id,
+        requestingUserId: user.id,
       });
-      alert('Event created successfully!');
-      navigate(`/events/${event.id}`);
-    } catch (err) {
-      const error = err as { response?: { data?: { error?: string } }; message?: string };
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to create event';
+      
+      alert('Event updated successfully!');
+      navigate(`/events/${id}`);
+    } catch (err: any) {
+      console.error('Error updating event:', err);
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to update event';
       setError(errorMessage);
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
-  if (user?.role !== 'ORGANIZER' && user?.role !== 'ADMIN') {
+  if (isLoading) {
+    return <div className="loading">Loading event...</div>;
+  }
+
+  if (error && !event) {
     return (
       <div className="error-message">
-        You must be an Organizer or Admin to create events.
+        {error}
+      </div>
+    );
+  }
+
+  if (!user || (user.role !== 'ORGANIZER' && user.role !== 'ADMIN')) {
+    return (
+      <div className="error-message">
+        You must be an Organizer or Admin to edit events.
       </div>
     );
   }
 
   return (
-    <div className="create-event-page">
+    <div className="edit-event-page">
       <div className="form-container">
-        <h1>Create New Event</h1>
+        <h1>Edit Event</h1>
 
         {error && (
           <div className="error-message">
@@ -221,13 +291,13 @@ const CreateEventPage: React.FC = () => {
           <div className="form-actions">
             <button
               type="button"
-              onClick={() => navigate('/events')}
+              onClick={() => navigate(`/events/${id}`)}
               className="btn-secondary"
             >
               Cancel
             </button>
-            <button type="submit" disabled={isLoading} className="btn-primary">
-              {isLoading ? 'Creating...' : 'Create Event'}
+            <button type="submit" disabled={isSaving} className="btn-primary">
+              {isSaving ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>
@@ -236,4 +306,4 @@ const CreateEventPage: React.FC = () => {
   );
 };
 
-export default CreateEventPage;
+export default EditEventPage;

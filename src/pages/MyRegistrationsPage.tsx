@@ -26,6 +26,7 @@ const MyRegistrationsPage: React.FC = () => {
     if (user) {
       loadRegistrations();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadRegistrations = async () => {
