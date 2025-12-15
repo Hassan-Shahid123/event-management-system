@@ -189,25 +189,51 @@ button:disabled {
 }
 
 .error-message {
-  background: #fee2e2;
-  color: #991b1b;
-  padding: 1.25rem 1.5rem;
+  background: white;
+  color: #2d3748;
+  padding: 1rem 1.5rem;
+  padding-left: calc(1.5rem + 6px);
   border-radius: 12px;
   margin-bottom: 1.5rem;
-  border-left: 4px solid var(--danger-500);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   font-weight: 500;
+  position: relative;
+  overflow: hidden;
+}
+
+.error-message::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+  border-radius: 12px 0 0 12px;
 }
 
 .success-message {
-  background: #d1fae5;
-  color: #065f46;
-  padding: 1.25rem 1.5rem;
+  background: white;
+  color: #2d3748;
+  padding: 1rem 1.5rem;
+  padding-left: calc(1.5rem + 6px);
   border-radius: 12px;
   margin-bottom: 1.5rem;
-  border-left: 4px solid var(--success-500);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   font-weight: 500;
+  position: relative;
+  overflow: hidden;
+}
+
+.success-message::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  border-radius: 12px 0 0 12px;
 }
 
 .info-message {

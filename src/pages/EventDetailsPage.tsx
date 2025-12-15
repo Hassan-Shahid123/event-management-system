@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { eventsAPI, venuesAPI, registrationsAPI, usersAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 import { format } from 'date-fns';
 import type { Event, Venue, User, RegistrationStatsResponse } from '../types';
 import './EventDetailsPage.css';
@@ -15,6 +16,7 @@ const EventDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const notification = useNotification();
 
   const [event, setEvent] = useState<Event | null>(null);
   const [venue, setVenue] = useState<Venue | null>(null);
@@ -78,12 +80,12 @@ const EventDetailsPage: React.FC = () => {
     }
 
     if (user.role !== 'STUDENT') {
-      alert('Only students can register for events.');
+      notification.warning('Only students can register for events.');
       return;
     }
 
     if (!id) {
-      alert('Event ID is missing');
+      notification.error('Event ID is missing');
       return;
     }
 
@@ -92,10 +94,10 @@ const EventDetailsPage: React.FC = () => {
       await registrationsAPI.register(id, user.id);
       setIsRegistered(true);
       await loadEventDetails(); // Refresh stats
-      alert('Successfully registered for event!');
+      notification.success('Successfully registered for event!');
     } catch (err: any) {
       console.error('Registration error:', err);
-      alert(err.response?.data?.error || 'Registration failed');
+      notification.error(err.response?.data?.error || 'Registration failed');
     } finally {
       setActionLoading(false);
     }
@@ -105,21 +107,19 @@ const EventDetailsPage: React.FC = () => {
     if (!user) return;
 
     if (!id) {
-      alert('Event ID is missing');
+      notification.error('Event ID is missing');
       return;
     }
-
-    if (!confirm('Are you sure you want to unregister from this event?')) return;
 
     try {
       setActionLoading(true);
       await registrationsAPI.unregister(id, user.id);
       setIsRegistered(false);
       await loadEventDetails(); // Refresh stats
-      alert('Successfully unregistered from event');
+      notification.info('Successfully unregistered from event');
     } catch (err: any) {
       console.error('Unregister error:', err);
-      alert(err.response?.data?.error || 'Unregister failed');
+      notification.error(err.response?.data?.error || 'Unregister failed');
     } finally {
       setActionLoading(false);
     }
@@ -128,15 +128,13 @@ const EventDetailsPage: React.FC = () => {
   const handleDeleteEvent = async () => {
     if (!user || !event) return;
 
-    if (!confirm('Are you sure you want to delete this event? This cannot be undone.')) return;
-
     try {
       setActionLoading(true);
       await eventsAPI.delete(event.id, user.id);
-      alert('Event deleted successfully');
+      notification.success('Event deleted successfully');
       navigate('/events');
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Delete failed');
+      notification.error(err.response?.data?.error || 'Delete failed');
       setActionLoading(false);
     }
   };

@@ -4,6 +4,7 @@
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
@@ -20,11 +21,12 @@ import './App.css';
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <div className="app">
-          <Navbar />
-          <main className="main-content">
+    <NotificationProvider>
+      <AuthProvider>
+        <Router>
+          <div className="app">
+            <Navbar />
+            <main className="main-content">
             <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<LoginPage />} />
@@ -104,6 +106,7 @@ function App() {
         </div>
       </Router>
     </AuthProvider>
+    </NotificationProvider>
   );
 }
 

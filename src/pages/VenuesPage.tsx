@@ -5,11 +5,13 @@
 import React, { useState, useEffect } from 'react';
 import { venuesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 import type { Venue, VenueType } from '../types';
 import './VenuesPage.css';
 
 const VenuesPage: React.FC = () => {
   const { user } = useAuth();
+  const notification = useNotification();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -46,11 +48,14 @@ const VenuesPage: React.FC = () => {
     setFormLoading(true);
 
     try {
-      await venuesAPI.create({
+      const newVenue = await venuesAPI.create({
         location,
         type,
         capacity: type === 'OPENAIR' ? undefined : capacity,
       });
+
+      // Add new venue to state directly
+      setVenues(prev => [...prev, newVenue]);
 
       // Reset form
       setLocation('');
@@ -58,10 +63,9 @@ const VenuesPage: React.FC = () => {
       setCapacity(undefined);
       setShowCreateForm(false);
       
-      alert('Venue created successfully!');
-      loadVenues();
+      notification.success('Venue created successfully!');
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to create venue');
+      notification.error(err.response?.data?.error || 'Failed to create venue');
     } finally {
       setFormLoading(false);
     }
@@ -87,30 +91,34 @@ const VenuesPage: React.FC = () => {
     setFormLoading(true);
 
     try {
-      await venuesAPI.update(editingVenueId, {
+      const updatedVenue = await venuesAPI.update(editingVenueId, {
         location: editLocation,
         type: editType,
         capacity: editType === 'OPENAIR' ? undefined : editCapacity,
       });
-      alert('Venue updated successfully');
+      
+      // Update venue in state directly
+      setVenues(prev => prev.map(v => v.id === editingVenueId ? updatedVenue : v));
+      
+      notification.success('Venue updated successfully');
       cancelEdit();
-      loadVenues();
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to update venue');
+      notification.error(err.response?.data?.error || 'Failed to update venue');
     } finally {
       setFormLoading(false);
     }
   };
 
   const handleDeleteVenue = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this venue?')) return;
-
     try {
       await venuesAPI.delete(id);
-      alert('Venue deleted successfully');
-      loadVenues();
+      
+      // Remove venue from state directly
+      setVenues(prev => prev.filter(v => v.id !== id));
+      
+      notification.success('Venue deleted successfully');
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to delete venue');
+      notification.error(err.response?.data?.error || 'Failed to delete venue');
     }
   };
 

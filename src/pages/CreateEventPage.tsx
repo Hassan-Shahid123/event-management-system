@@ -7,12 +7,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { eventsAPI, venuesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 import type { Venue } from '../types';
 import './CreateEventPage.css';
 
 const CreateEventPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const notification = useNotification();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -113,11 +115,13 @@ const CreateEventPage: React.FC = () => {
         venue_id: venueId,
         organizer_id: user.id,
       });
-      alert('Event created successfully!');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      notification.success('Event created successfully!');
       navigate(`/events/${event.id}`);
     } catch (err) {
       const error = err as { response?: { data?: { error?: string } }; message?: string };
       const errorMessage = error.response?.data?.error || error.message || 'Failed to create event';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       setError(errorMessage);
     } finally {
       setIsLoading(false);

@@ -5,21 +5,51 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 import { usersAPI } from '../services/api';
 import type { User } from '../types';
 import './UsersPage.css';
 
 const UsersPage: React.FC = () => {
   const { user } = useAuth();
+  const notification = useNotification();
   const [organizers, setOrganizers] = useState<User[]>([]);
   const [students, setStudents] = useState<User[]>([]);
+  const [filteredOrganizers, setFilteredOrganizers] = useState<User[]>([]);
+  const [filteredStudents, setFilteredStudents] = useState<User[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [admins, setAdmins] = useState<Map<string, User>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    // Filter users based on search term
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      setFilteredOrganizers(
+        organizers.filter(
+          org => 
+            org.name.toLowerCase().includes(term) || 
+            org.email.toLowerCase().includes(term)
+        )
+      );
+      setFilteredStudents(
+        students.filter(
+          student => 
+            student.name.toLowerCase().includes(term) || 
+            student.email.toLowerCase().includes(term)
+        )
+      );
+    } else {
+      setFilteredOrganizers(organizers);
+      setFilteredStudents(students);
+    }
+  }, [searchTerm, organizers, students]);
 
   const fetchUsers = async () => {
     try {
@@ -30,6 +60,27 @@ const UsersPage: React.FC = () => {
       ]);
       setOrganizers(organizersData);
       setStudents(studentsData);
+      
+      // Fetch admin details for organizers (who were approved by admins)
+      const adminIds = new Set(
+        organizersData
+          .filter(org => org.approved_by)
+          .map(org => org.approved_by!)
+      );
+      
+      const adminMap = new Map<string, User>();
+      await Promise.all(
+        Array.from(adminIds).map(async (adminId) => {
+          try {
+            const admin = await usersAPI.getById(adminId);
+            adminMap.set(adminId, admin);
+          } catch (err) {
+            console.error('Failed to fetch admin:', adminId);
+          }
+        })
+      );
+      
+      setAdmins(adminMap);
       setError('');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
@@ -39,21 +90,51 @@ const UsersPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (userId: string, userName: string) => {
-    if (!window.confirm(`Are you sure you want to delete ${userName}'s account? They will not be able to login anymore.`)) {
-      return;
-    }
-
-    setDeletingIds(prev => new Set(prev).add(userId));
+  const handleFreeze = async (userId: string, userName: string) => {
+    setProcessingIds(prev => new Set(prev).add(userId));
     try {
-      await usersAPI.delete(userId);
-      setOrganizers(prev => prev.filter(u => u.id !== userId));
-      setStudents(prev => prev.filter(u => u.id !== userId));
+      await usersAPI.freezeUser(userId);
+      
+      // Update state directly without refetching
+      setOrganizers(prev => prev.map(org => 
+        org.id === userId ? { ...org, deleted: 1 as number, deleted_at: new Date().toISOString() } : org
+      ));
+      setStudents(prev => prev.map(student => 
+        student.id === userId ? { ...student, deleted: 1 as number, deleted_at: new Date().toISOString() } : student
+      ));
+      
+      notification.success(`${userName}'s account has been frozen successfully.`);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
-      alert(error.response?.data?.error || 'Failed to delete user');
+      notification.error(error.response?.data?.error || 'Failed to freeze user');
     } finally {
-      setDeletingIds(prev => {
+      setProcessingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(userId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleUnfreeze = async (userId: string, userName: string) => {
+    setProcessingIds(prev => new Set(prev).add(userId));
+    try {
+      await usersAPI.unfreezeUser(userId);
+      
+      // Update state directly without refetching
+      setOrganizers(prev => prev.map(org => 
+        org.id === userId ? { ...org, deleted: 0 as number, deleted_at: undefined } : org
+      ));
+      setStudents(prev => prev.map(student => 
+        student.id === userId ? { ...student, deleted: 0 as number, deleted_at: undefined } : student
+      ));
+      
+      notification.success(`${userName}'s account has been unfrozen successfully.`);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      notification.error(error.response?.data?.error || 'Failed to unfreeze user');
+    } finally {
+      setProcessingIds(prev => {
         const newSet = new Set(prev);
         newSet.delete(userId);
         return newSet;
@@ -84,6 +165,16 @@ const UsersPage: React.FC = () => {
         <p className="subtitle">Manage approved organizers and registered students</p>
       </div>
 
+      <div className="search-bar">
+        <input
+          type="text"
+          placeholder="Search users by name or email..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="search-input"
+        />
+      </div>
+
       {error && <div className="error-banner">{error}</div>}
 
       {isLoading ? (
@@ -95,14 +186,14 @@ const UsersPage: React.FC = () => {
         <>
           {/* Approved Organizers Section */}
           <div className="users-section">
-            <h2 className="section-title">Approved Organizers ({organizers.length})</h2>
-            {organizers.length === 0 ? (
+            <h2 className="section-title">Approved Organizers ({filteredOrganizers.length})</h2>
+            {filteredOrganizers.length === 0 ? (
               <div className="empty-state-small">
-                <p>No approved organizers found.</p>
+                <p>{searchTerm ? 'No organizers found matching your search' : 'No approved organizers found.'}</p>
               </div>
             ) : (
               <div className="users-list">
-                {organizers.map((organizer) => (
+                {filteredOrganizers.map((organizer) => (
                   <div key={organizer.id} className="user-card">
                     <div className="user-info">
                       <h3>{organizer.name}</h3>
@@ -110,17 +201,34 @@ const UsersPage: React.FC = () => {
                       <p className="user-date">Joined: {formatDate(organizer.created_at)}</p>
                       <div className="user-meta">
                         <span className="badge badge-organizer">Organizer</span>
-                       
+                        {organizer.deleted === 1 && (
+                          <span className="badge badge-frozen">FROZEN</span>
+                        )}
                       </div>
+                      {organizer.approved_by && admins.get(organizer.approved_by) && (
+                        <div className="admin-info">
+                          <strong>Approved by:</strong> {admins.get(organizer.approved_by)?.name} ({admins.get(organizer.approved_by)?.email})
+                        </div>
+                      )}
                     </div>
                     <div className="user-actions">
-                      <button
-                        className="btn-delete"
-                        onClick={() => handleDelete(organizer.id, organizer.name)}
-                        disabled={deletingIds.has(organizer.id)}
-                      >
-                        {deletingIds.has(organizer.id) ? 'Deleting...' : '🗑️ Delete'}
-                      </button>
+                      {organizer.deleted === 1 ? (
+                        <button
+                          className="btn-unfreeze"
+                          onClick={() => handleUnfreeze(organizer.id, organizer.name)}
+                          disabled={processingIds.has(organizer.id)}
+                        >
+                          {processingIds.has(organizer.id) ? 'Processing...' : '🔓 Unfreeze'}
+                        </button>
+                      ) : (
+                        <button
+                          className="btn-freeze"
+                          onClick={() => handleFreeze(organizer.id, organizer.name)}
+                          disabled={processingIds.has(organizer.id)}
+                        >
+                          {processingIds.has(organizer.id) ? 'Processing...' : '❄️ Freeze'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -130,14 +238,14 @@ const UsersPage: React.FC = () => {
 
           {/* Students Section */}
           <div className="users-section">
-            <h2 className="section-title">Students ({students.length})</h2>
-            {students.length === 0 ? (
+            <h2 className="section-title">Students ({filteredStudents.length})</h2>
+            {filteredStudents.length === 0 ? (
               <div className="empty-state-small">
-                <p>No students found.</p>
+                <p>{searchTerm ? 'No students found matching your search' : 'No students found.'}</p>
               </div>
             ) : (
               <div className="users-list">
-                {students.map((student) => (
+                {filteredStudents.map((student) => (
                   <div key={student.id} className="user-card">
                     <div className="user-info">
                       <h3>{student.name}</h3>
@@ -145,17 +253,29 @@ const UsersPage: React.FC = () => {
                       <p className="user-date">Joined: {formatDate(student.created_at)}</p>
                       <div className="user-meta">
                         <span className="badge badge-student">Student</span>
-                      
+                        {student.deleted === 1 && (
+                          <span className="badge badge-frozen">FROZEN</span>
+                        )}
                       </div>
                     </div>
                     <div className="user-actions">
-                      <button
-                        className="btn-delete"
-                        onClick={() => handleDelete(student.id, student.name)}
-                        disabled={deletingIds.has(student.id)}
-                      >
-                        {deletingIds.has(student.id) ? 'Deleting...' : '🗑️ Delete'}
-                      </button>
+                      {student.deleted === 1 ? (
+                        <button
+                          className="btn-unfreeze"
+                          onClick={() => handleUnfreeze(student.id, student.name)}
+                          disabled={processingIds.has(student.id)}
+                        >
+                          {processingIds.has(student.id) ? 'Processing...' : '🔓 Unfreeze'}
+                        </button>
+                      ) : (
+                        <button
+                          className="btn-freeze"
+                          onClick={() => handleFreeze(student.id, student.name)}
+                          disabled={processingIds.has(student.id)}
+                        >
+                          {processingIds.has(student.id) ? 'Processing...' : '❄️ Freeze'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

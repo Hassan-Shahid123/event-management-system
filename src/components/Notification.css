@@ -1,0 +1,115 @@
+/* Notification Toast Styling */
+
+.notification {
+  position: fixed;
+  top: 6rem;
+  right: 2rem;
+  min-width: 320px;
+  max-width: 500px;
+  padding: 0;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: stretch;
+  z-index: 9999;
+  animation: slideIn 0.3s ease-out;
+  overflow: hidden;
+  background: white;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.notification::before {
+  content: '';
+  width: 8px;
+  flex-shrink: 0;
+}
+
+.notification-icon {
+  font-size: 1.75rem;
+  font-weight: bold;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem 0 1.25rem 1rem;
+}
+
+.notification-message {
+  flex: 1;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  padding: 1.25rem 1rem;
+  color: #2d3748;
+}
+
+.notification-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 1rem 1.25rem;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+  color: #4a5568;
+}
+
+.notification-close:hover {
+  opacity: 1;
+}
+
+/* Success Notification - Green */
+.notification-success::before {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+}
+
+.notification-success .notification-icon {
+  color: #38a169;
+}
+
+/* Error Notification - Red */
+.notification-error::before {
+  background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+}
+
+.notification-error .notification-icon {
+  color: #e53e3e;
+}
+
+/* Warning Notification - Orange */
+.notification-warning::before {
+  background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+}
+
+.notification-warning .notification-icon {
+  color: #dd6b20;
+}
+
+/* Info Notification - Blue */
+.notification-info::before {
+  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+}
+
+.notification-info .notification-icon {
+  color: #3182ce;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .notification {
+    top: 4rem;
+    right: 1rem;
+    left: 1rem;
+    min-width: unset;
+  }
+}

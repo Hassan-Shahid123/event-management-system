@@ -56,6 +56,7 @@ const LoginPage: React.FC = () => {
       } else if (errorMsg.toLowerCase().includes('password')) {
         setErrors({ password: errorMsg });
       } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         setErrors({ general: errorMsg });
       }
     } finally {

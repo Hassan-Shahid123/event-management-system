@@ -119,6 +119,16 @@ export const usersAPI = {
     const response = await api.post<{ message: string; user: User }>(`/users/${userId}/reject`);
     return response.data;
   },
+
+  freezeUser: async (userId: string): Promise<{ message: string; user: User }> => {
+    const response = await api.post<{ message: string; user: User }>(`/users/${userId}/freeze`);
+    return response.data;
+  },
+
+  unfreezeUser: async (userId: string): Promise<{ message: string; user: User }> => {
+    const response = await api.post<{ message: string; user: User }>(`/users/${userId}/unfreeze`);
+    return response.data;
+  },
 };
 
 // ============================================================================

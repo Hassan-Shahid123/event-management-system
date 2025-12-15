@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { eventsAPI, venuesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 import type { Event, Venue } from '../types';
 import './EditEventPage.css';
 
@@ -14,6 +15,7 @@ const EditEventPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const notification = useNotification();
 
   const [event, setEvent] = useState<Event | null>(null);
   const [title, setTitle] = useState('');
@@ -171,11 +173,13 @@ const EditEventPage: React.FC = () => {
         requestingUserId: user.id,
       });
       
-      alert('Event updated successfully!');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      notification.success('Event updated successfully!');
       navigate(`/events/${id}`);
     } catch (err: any) {
       console.error('Error updating event:', err);
       const errorMessage = err.response?.data?.error || err.message || 'Failed to update event';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       setError(errorMessage);
     } finally {
       setIsSaving(false);
