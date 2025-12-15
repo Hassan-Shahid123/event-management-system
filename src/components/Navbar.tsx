@@ -29,9 +29,7 @@ const Navbar: React.FC = () => {
               <Link to="/events" className="nav-link">Events</Link>
               <Link to="/my-registrations" className="nav-link">My Registrations</Link>
               
-              {(user?.role === 'ORGANIZER' || user?.role === 'ADMIN') && (
-                <Link to="/events/create" className="nav-link">Create Event</Link>
-              )}
+           
               
               {user?.role === 'ADMIN' && (
                 <Link to="/venues" className="nav-link">Venues</Link>
