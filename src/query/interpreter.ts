@@ -1,208 +1,252 @@
 /**
- * Event Query Language - Interpreter
+ * Notification Rule Language - Interpreter
  * 
- * Evaluates AST against event objects to filter/match events.
- * Implements visitor pattern for AST traversal.
+ * Evaluates notification rule AST against events to determine if notifications should be sent.
+ * Implements visitor pattern for AST traversal and condition evaluation.
  * 
- * SOFTWARE CONSTRUCTION CONCEPTS:
- * ==============================
- * - Interpreter pattern (code as data)
+ * SOFTWARE CONSTRUCTION CONCEPTS (MIT 6.102):
+ * ==========================================
+ * - Interpreter pattern (code as data - rules are data, not hardcoded logic)
  * - Visitor pattern for tree traversal
  * - Recursive evaluation on recursive data types
  * - Type-safe value comparisons
- * - Separation of parsing and evaluation
+ * - Separation of parsing (grammar) and evaluation (this file)
+ * 
+ * Example:
+ * Rule: "SEND email WHEN hours_until = 24 AND status = UPCOMING"
+ * Event: { id: 1, start_datetime: "2024-12-16T10:00:00Z", status: "UPCOMING" }
+ * Current time: 2024-12-15T10:00:00Z
+ * Result: { shouldSend: true, channels: ['email'], reason: 'Rule matched' }
  */
 
-import { Expression } from './ast';
+import { RuleNode, Expression, BinaryNode, ConditionNode } from './ast';
 import { Event } from '../types';
 
 /**
- * QueryResult: Result of evaluating a query
- * 
- * Contains matched events and evaluation metadata
+ * Extended Event type with optional venue-related fields for rule evaluation
  */
-export interface QueryResult {
-  events: Event[];
-  matched: number;
-  total: number;
-  executionTimeMs: number;
+export interface EventWithMetadata extends Event {
+  capacity?: number;
+  available_seats?: number;
+  price?: number;
 }
 
 /**
- * Interpreter: Evaluates queries against events
+ * EvaluationContext: Context data for rule evaluation
+ * 
+ * Contains event data and computed fields like hours_until
+ */
+export interface EvaluationContext {
+  event: EventWithMetadata;
+  now: Date;
+  hours_until: number;
+  minutes_until: number;
+  days_until: number;
+  status: string;
+  capacity: number;
+  available_seats: number;
+  price: number;
+  title: string;
+}
+
+/**
+ * RuleEvaluationResult: Result of evaluating a rule against an event
+ */
+export interface RuleEvaluationResult {
+  shouldSend: boolean;
+  channels: string[];
+  reason: string;
+  ruleName?: string;
+}
+
+/**
+ * Interpreter: Evaluates notification rules against events
  * 
  * Design pattern: Visitor pattern
  * - Each AST node type has a corresponding evaluation method
  * - Recursive structure of AST leads to recursive evaluation
  * 
- * Rep invariant: events array is immutable during evaluation
+ * Rep invariant: Evaluation is stateless and pure (no side effects)
  */
 export class Interpreter {
-  private events: Event[];
-
   /**
-   * Creates a new interpreter
+   * Evaluates a rule and determines if notification should be sent
    * 
-   * @param events - Events to query against
-   * 
-   * Precondition: events !== null
-   * Postcondition: Interpreter ready to evaluate queries
-   */
-  constructor(events: Event[]) {
-    this.events = events;
-  }
-
-  /**
-   * Evaluates a query and returns matching events
-   * 
-   * @param ast - Query AST from parser
-   * @returns Query result with matched events
+   * @param rule - Parsed rule AST
+   * @param event - Event to evaluate against
+   * @param now - Current time (for testing, defaults to now)
+   * @returns Evaluation result with channels and reason
    * 
    * Specification:
-   * - Evaluates AST against all events
-   * - Returns events where AST evaluates to true
-   * - Tracks execution time for performance monitoring
+   * - Creates evaluation context with event and computed fields
+   * - Recursively evaluates rule conditions
+   * - Returns channels to send if conditions match
    * 
-   * Postcondition: Result contains events matching query
-   * Postcondition: events array unchanged (immutable)
+   * Time complexity: O(depth of AST)
    */
-  public evaluate(ast: Expression): QueryResult {
-    const startTime = Date.now();
+  public static evaluateRule(
+    rule: RuleNode,
+    event: EventWithMetadata,
+    now: Date = new Date()
+  ): RuleEvaluationResult {
+    const context = this.createContext(event, now);
+    const conditionMatches = this.evaluateExpression(rule.condition, context);
 
-    const matchedEvents = this.events.filter(event => 
-      this.evaluateExpression(ast, event)
-    );
-
-    const executionTimeMs = Date.now() - startTime;
+    if (conditionMatches) {
+      return {
+        shouldSend: true,
+        channels: rule.channels,
+        reason: 'Rule conditions matched'
+      };
+    }
 
     return {
-      events: matchedEvents,
-      matched: matchedEvents.length,
-      total: this.events.length,
-      executionTimeMs
+      shouldSend: false,
+      channels: [],
+      reason: 'Rule conditions did not match'
     };
   }
 
   /**
-   * Recursively evaluates an expression against an event
+   * Creates evaluation context with computed fields
+   * 
+   * @param event - Event to create context for
+   * @param now - Current time
+   * @returns Evaluation context with all fields
+   * 
+   * Computed fields:
+   * - hours_until: Hours from now until event starts
+   * - minutes_until: Minutes from now until event starts
+   * - days_until: Days from now until event starts
+   */
+  private static createContext(event: EventWithMetadata, now: Date): EvaluationContext {
+    const eventStart = new Date(event.start_datetime);
+    const msUntil = eventStart.getTime() - now.getTime();
+    
+    return {
+      event,
+      now,
+      hours_until: Math.floor(msUntil / (1000 * 60 * 60)),
+      minutes_until: Math.floor(msUntil / (1000 * 60)),
+      days_until: Math.floor(msUntil / (1000 * 60 * 60 * 24)),
+      status: event.status,
+      capacity: event.capacity || 0,
+      available_seats: event.available_seats || 0,
+      price: event.price || 0,
+      title: event.title
+    };
+  }
+
+  /**
+   * Recursively evaluates an expression against context
    * 
    * @param expr - Expression node to evaluate
-   * @param event - Event to evaluate against
+   * @param context - Evaluation context with event data
    * @returns Boolean result of evaluation
    * 
    * Demonstrates: Structural recursion on recursive data types
    * 
    * Pattern: Each node type handled separately:
-   * - BinaryExpr: Recurse on children, combine with operator
-   * - ComparisonExpr: Compare field value with query value
-   * - FieldExpr: Check field existence (future use)
+   * - BinaryNode: Recurse on children, combine with AND/OR
+   * - ConditionNode: Compare field value with expected value
    * 
-   * Time complexity: O(depth of AST)
+   * Time complexity: O(n) where n is number of nodes in AST
    */
-  private evaluateExpression(expr: Expression, event: Event): boolean {
+  private static evaluateExpression(
+    expr: Expression,
+    context: EvaluationContext
+  ): boolean {
     switch (expr.kind) {
-      case 'BinaryExpr':
-        return this.evaluateBinaryExpr(expr, event);
+      case 'BinaryNode':
+        return this.evaluateBinaryNode(expr, context);
       
-      case 'ComparisonExpr':
-        return this.evaluateComparisonExpr(expr, event);
-      
-      case 'FieldExpr':
-        // Field existence check (not currently used in grammar)
-        return this.hasField(event, expr.field);
+      case 'ConditionNode':
+        return this.evaluateConditionNode(expr, context);
       
       default:
-        // TypeScript exhaustiveness check
         const _exhaustive: never = expr;
-        return false;
+        return _exhaustive;
     }
   }
 
   /**
-   * Evaluates binary expression (AND/OR)
+   * Evaluates binary node (AND/OR)
    * 
-   * @param expr - Binary expression node
-   * @param event - Event to evaluate against
+   * @param node - Binary node to evaluate
+   * @param context - Evaluation context
    * @returns Boolean result
    * 
-   * Semantics:
-   * - AND: Both children must be true
-   * - OR: At least one child must be true
+   * AND: Both left and right must be true
+   * OR: At least one of left or right must be true
    * 
    * Short-circuit evaluation:
-   * - AND: Stop if left is false
-   * - OR: Stop if left is true
-   * 
-   * Demonstrates: Recursive evaluation
+   * - AND: If left is false, don't evaluate right
+   * - OR: If left is true, don't evaluate right
    */
-  private evaluateBinaryExpr(expr: Expression & { kind: 'BinaryExpr' }, event: Event): boolean {
-    const leftResult = this.evaluateExpression(expr.left, event);
-
-    // Short-circuit evaluation
-    if (expr.operator === 'AND' && !leftResult) {
-      return false;
+  private static evaluateBinaryNode(
+    node: BinaryNode,
+    context: EvaluationContext
+  ): boolean {
+    const leftResult = this.evaluateExpression(node.left, context);
+    
+    if (node.operator === 'AND') {
+      // Short-circuit: if left is false, no need to check right
+      if (!leftResult) return false;
+      return this.evaluateExpression(node.right, context);
+    } else if (node.operator === 'OR') {
+      // Short-circuit: if left is true, no need to check right
+      if (leftResult) return true;
+      return this.evaluateExpression(node.right, context);
     }
-    if (expr.operator === 'OR' && leftResult) {
-      return true;
-    }
-
-    const rightResult = this.evaluateExpression(expr.right, event);
-
-    return expr.operator === 'AND' 
-      ? leftResult && rightResult
-      : leftResult || rightResult;
+    
+    return false;
   }
 
   /**
-   * Evaluates comparison expression
+   * Evaluates condition node (field comparison)
    * 
-   * @param expr - Comparison expression node
-   * @param event - Event to evaluate against
+   * @param node - Condition node to evaluate
+   * @param context - Evaluation context
    * @returns Boolean result of comparison
    * 
-   * Handles different operators:
-   * - =, !=: Equality/inequality
-   * - CONTAINS: Substring matching (case-insensitive)
-   * - <, >, <=, >=: Numeric/date comparisons
-   * 
-   * Type handling:
-   * - Converts event field values to appropriate types
-   * - Handles dates, numbers, and strings
-   * - Case-insensitive string comparisons
+   * Supports operators: =, !=, >, <, >=, <=
+   * Type-safe comparisons based on field type
    */
-  private evaluateComparisonExpr(expr: Expression & { kind: 'ComparisonExpr' }, event: Event): boolean {
-    // Get field value from event
-    const fieldValue = this.getFieldValue(event, expr.field);
-    
-    if (fieldValue === undefined || fieldValue === null) {
-      return false;
-    }
+  private static evaluateConditionNode(
+    node: ConditionNode,
+    context: EvaluationContext
+  ): boolean {
+    // Get actual field value from context
+    const fieldValue = this.getFieldValue(node.field, context);
+    const expectedValue = node.value;
 
-    const queryValue = expr.value;
-    const operator = expr.operator;
-
-    // Type-specific comparisons
-    switch (operator) {
+    // Perform comparison based on operator
+    switch (node.operator) {
       case '=':
-        return this.equals(fieldValue, queryValue);
+        return fieldValue === expectedValue;
       
       case '!=':
-        return !this.equals(fieldValue, queryValue);
-      
-      case 'CONTAINS':
-        return this.contains(fieldValue, queryValue);
+        return fieldValue !== expectedValue;
       
       case '>':
-        return this.greaterThan(fieldValue, queryValue);
+        return typeof fieldValue === 'number' && typeof expectedValue === 'number'
+          ? fieldValue > expectedValue
+          : false;
       
       case '<':
-        return this.lessThan(fieldValue, queryValue);
+        return typeof fieldValue === 'number' && typeof expectedValue === 'number'
+          ? fieldValue < expectedValue
+          : false;
       
       case '>=':
-        return this.greaterThan(fieldValue, queryValue) || this.equals(fieldValue, queryValue);
+        return typeof fieldValue === 'number' && typeof expectedValue === 'number'
+          ? fieldValue >= expectedValue
+          : false;
       
       case '<=':
-        return this.lessThan(fieldValue, queryValue) || this.equals(fieldValue, queryValue);
+        return typeof fieldValue === 'number' && typeof expectedValue === 'number'
+          ? fieldValue <= expectedValue
+          : false;
       
       default:
         return false;
@@ -210,146 +254,95 @@ export class Interpreter {
   }
 
   /**
-   * Gets field value from event object
+   * Gets field value from context
    * 
-   * @param event - Event object
    * @param field - Field name
+   * @param context - Evaluation context
    * @returns Field value or undefined
    * 
-   * Maps query field names to event object properties:
-   * - title -> event.title
-   * - status -> event.status
-   * - organizer -> event.organizer_id
-   * - venue -> event.venue_id
-   * - date -> event.start_datetime
-   * - capacity -> (not directly on Event, would need venue lookup)
+   * Supports both event fields and computed fields
    */
-  private getFieldValue(event: Event, field: string): any {
-    switch (field.toLowerCase()) {
-      case 'title':
-        return event.title;
+  private static getFieldValue(
+    field: string,
+    context: EvaluationContext
+  ): string | number | undefined {
+    switch (field) {
+      case 'hours_until':
+        return context.hours_until;
+      case 'minutes_until':
+        return context.minutes_until;
+      case 'days_until':
+        return context.days_until;
       case 'status':
-        return event.status;
-      case 'organizer':
-        return event.organizer_id;
-      case 'venue':
-        return event.venue_id;
-      case 'date':
-        return event.start_datetime;
+        return context.status;
       case 'capacity':
-        // Note: capacity is on Venue, not Event
-        // For now, return undefined - would need venue join in real implementation
-        return undefined;
+        return context.capacity;
+      case 'available_seats':
+        return context.available_seats;
+      case 'price':
+        return context.price;
+      case 'title':
+        return context.title;
       default:
         return undefined;
     }
   }
 
   /**
-   * Comparison helper methods
+   * Validates if a rule is syntactically correct and can be evaluated
    * 
-   * These handle type conversions and comparisons
-   * Support: strings, numbers, dates
+   * @param rule - Rule to validate
+   * @returns Validation result with error message if invalid
    */
+  public static validateRule(rule: RuleNode): { valid: boolean; error?: string } {
+    // Check channels
+    if (!rule.channels || rule.channels.length === 0) {
+      return { valid: false, error: 'Rule must have at least one channel' };
+    }
 
-  /**
-   * Equality comparison (case-insensitive for strings)
-   */
-  private equals(fieldValue: any, queryValue: any): boolean {
-    if (typeof fieldValue === 'string' && typeof queryValue === 'string') {
-      return fieldValue.toLowerCase() === queryValue.toLowerCase();
+    const validChannels = ['email', 'sms', 'push'];
+    for (const channel of rule.channels) {
+      if (!validChannels.includes(channel)) {
+        return { valid: false, error: `Invalid channel: ${channel}` };
+      }
     }
-    
-    if (fieldValue instanceof Date && queryValue instanceof Date) {
-      return fieldValue.getTime() === queryValue.getTime();
+
+    // Check condition has valid fields
+    const validationError = this.validateExpression(rule.condition);
+    if (validationError) {
+      return { valid: false, error: validationError };
     }
-    
-    return fieldValue === queryValue;
+
+    return { valid: true };
   }
 
   /**
-   * Substring containment (case-insensitive)
+   * Validates expression recursively
+   * 
+   * @param expr - Expression to validate
+   * @returns Error message if invalid, null if valid
    */
-  private contains(fieldValue: any, queryValue: any): boolean {
-    const fieldStr = String(fieldValue).toLowerCase();
-    const queryStr = String(queryValue).toLowerCase();
-    return fieldStr.includes(queryStr);
+  private static validateExpression(expr: Expression): string | null {
+    switch (expr.kind) {
+      case 'BinaryNode':
+        const leftError = this.validateExpression(expr.left);
+        if (leftError) return leftError;
+        const rightError = this.validateExpression(expr.right);
+        if (rightError) return rightError;
+        return null;
+      
+      case 'ConditionNode':
+        const validFields = [
+          'hours_until', 'minutes_until', 'days_until',
+          'status', 'capacity', 'available_seats', 'price', 'title'
+        ];
+        if (!validFields.includes(expr.field)) {
+          return `Invalid field: ${expr.field}`;
+        }
+        return null;
+      
+      default:
+        return 'Unknown expression type';
+    }
   }
-
-  /**
-   * Greater-than comparison (numbers and dates)
-   */
-  private greaterThan(fieldValue: any, queryValue: any): boolean {
-    if (fieldValue instanceof Date && queryValue instanceof Date) {
-      return fieldValue.getTime() > queryValue.getTime();
-    }
-    
-    if (typeof fieldValue === 'number' && typeof queryValue === 'number') {
-      return fieldValue > queryValue;
-    }
-    
-    // Try numeric comparison
-    const fieldNum = Number(fieldValue);
-    const queryNum = Number(queryValue);
-    if (!isNaN(fieldNum) && !isNaN(queryNum)) {
-      return fieldNum > queryNum;
-    }
-    
-    return false;
-  }
-
-  /**
-   * Less-than comparison (numbers and dates)
-   */
-  private lessThan(fieldValue: any, queryValue: any): boolean {
-    if (fieldValue instanceof Date && queryValue instanceof Date) {
-      return fieldValue.getTime() < queryValue.getTime();
-    }
-    
-    if (typeof fieldValue === 'number' && typeof queryValue === 'number') {
-      return fieldValue < queryValue;
-    }
-    
-    // Try numeric comparison
-    const fieldNum = Number(fieldValue);
-    const queryNum = Number(queryValue);
-    if (!isNaN(fieldNum) && !isNaN(queryNum)) {
-      return fieldNum < queryNum;
-    }
-    
-    return false;
-  }
-
-  /**
-   * Checks if event has a field
-   */
-  private hasField(event: Event, field: string): boolean {
-    return this.getFieldValue(event, field) !== undefined;
-  }
-}
-
-/**
- * Convenience function: Execute query string directly
- * 
- * @param query - Query string
- * @param events - Events to query
- * @returns Query result
- * 
- * Example:
- * const result = executeQuery(
- *   "status = UPCOMING AND venue = auditorium",
- *   allEvents
- * );
- * console.log(`Found ${result.matched} events in ${result.executionTimeMs}ms`);
- * 
- * Demonstrates: End-to-end query execution
- * - Lexical analysis (tokenization)
- * - Syntax analysis (parsing)
- * - Semantic analysis (evaluation)
- */
-export function executeQuery(query: string, events: Event[]): QueryResult {
-  const { parse } = require('./parser-generated');
-  const ast = parse(query);
-  const interpreter = new Interpreter(events);
-  return interpreter.evaluate(ast);
 }

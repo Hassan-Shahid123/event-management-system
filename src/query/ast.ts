@@ -1,120 +1,152 @@
 /**
- * Event Query Language - Abstract Syntax Tree (AST)
+ * Notification Rule Language - Abstract Syntax Tree (AST)
  * 
- * Defines recursive data types for representing parsed queries.
- * The AST is a tree structure where each node represents a query component.
+ * Defines recursive data types for representing parsed notification rules.
+ * The AST represents: SEND <channels> WHEN <conditions>
  * 
- * SOFTWARE CONSTRUCTION CONCEPTS:
- * ==============================
+ * SOFTWARE CONSTRUCTION CONCEPTS (MIT 6.102):
+ * ==========================================
  * - Recursive data types (Expression contains Expression)
  * - Abstract data types with operations
  * - Composite pattern for tree structure
  * - Immutability (readonly fields)
  * - Type safety with discriminated unions
+ * 
+ * Example AST for "SEND email, sms WHEN hours_until = 24 AND status = UPCOMING":
+ * {
+ *   kind: 'RuleNode',
+ *   channels: ['email', 'sms'],
+ *   condition: {
+ *     kind: 'BinaryNode',
+ *     operator: 'AND',
+ *     left: { kind: 'ConditionNode', field: 'hours_until', operator: '=', value: 24 },
+ *     right: { kind: 'ConditionNode', field: 'status', operator: '=', value: 'UPCOMING' }
+ *   }
+ * }
  */
 
-import { QueryField, QueryOperator } from './grammar';
-
 /**
- * ASTNode: Base interface for all AST nodes
- * 
- * Represents: Abstract base type for visitor pattern
- * Design pattern: Composite pattern
+ * Base interface for all AST nodes
  */
 export interface ASTNode {
   readonly kind: string;
 }
 
 /**
- * Expression: Recursive data type for query expressions
+ * Expression: Recursive data type for rule conditions
  * 
- * Grammar: Expression ::= BinaryExpr | ComparisonExpr | FieldExpr
+ * Grammar: Expression ::= BinaryNode | ConditionNode
  * 
  * Invariant: Forms a tree (no cycles)
  * Invariant: Each node has a specific kind
  */
-export type Expression = 
-  | BinaryExpr
-  | ComparisonExpr
-  | FieldExpr;
+export type Expression = BinaryNode | ConditionNode;
 
 /**
- * BinaryExpr: Logical operations (AND, OR)
+ * RuleNode: Top-level notification rule
  * 
- * Represents: expr1 AND expr2  OR  expr1 OR expr2
+ * Represents: SEND email, sms WHEN condition
+ * 
+ * Invariant: channels is non-empty array
+ * Invariant: condition is a valid expression
+ */
+export interface RuleNode extends ASTNode {
+  readonly kind: 'RuleNode';
+  readonly channels: string[]; // ['email', 'sms', 'push']
+  readonly condition: Expression;
+}
+
+/**
+ * BinaryNode: Logical operations (AND, OR)
+ * 
+ * Represents: condition1 AND condition2  OR  condition1 OR condition2
  * 
  * Invariant: operator in {'AND', 'OR'}
  * Invariant: left and right are valid expressions
  * 
- * Example: (status = UPCOMING) AND (venue = auditorium)
- *          BinaryExpr(AND, ComparisonExpr(...), ComparisonExpr(...))
+ * Example: (hours_until = 24) AND (status = UPCOMING)
  */
-export interface BinaryExpr extends ASTNode {
-  readonly kind: 'BinaryExpr';
+export interface BinaryNode extends ASTNode {
+  readonly kind: 'BinaryNode';
   readonly operator: 'AND' | 'OR';
   readonly left: Expression;
   readonly right: Expression;
 }
 
 /**
- * ComparisonExpr: Field comparisons
+ * ConditionNode: Field comparisons
  * 
  * Represents: field operator value
  * 
- * Invariant: field is a valid QueryField
- * Invariant: operator is a valid QueryOperator
+ * Invariant: field is a valid field name
+ * Invariant: operator is a valid comparison operator
  * Invariant: value matches expected type for field
  * 
- * Example: status = UPCOMING
- *          ComparisonExpr('status', '=', 'UPCOMING')
+ * Example: hours_until = 24
+ *          ConditionNode('hours_until', '=', 24)
  */
-export interface ComparisonExpr extends ASTNode {
-  readonly kind: 'ComparisonExpr';
-  readonly field: QueryField;
-  readonly operator: QueryOperator;
-  readonly value: string | number | Date;
+export interface ConditionNode extends ASTNode {
+  readonly kind: 'ConditionNode';
+  readonly field: string;
+  readonly operator: string; // '=', '!=', '>', '<', '>=', '<='
+  readonly value: string | number;
 }
 
 /**
- * FieldExpr: Simple field reference (for future extension)
- * 
- * Represents: field name without comparison
- * 
- * Invariant: field is a valid QueryField
- * 
- * Example: status  (could be used for boolean fields)
+ * Factory Functions for AST Node Creation
+ * ========================================
+ * Ensure proper initialization and type safety
  */
-export interface FieldExpr extends ASTNode {
-  readonly kind: 'FieldExpr';
-  readonly field: QueryField;
+
+/**
+ * Creates a rule node with channels and condition
+ * 
+ * @param channels - Array of notification channels
+ * @param condition - Boolean condition expression
+ * @returns New RuleNode
+ * 
+ * Precondition: channels is non-empty
+ * Precondition: condition is a valid expression
+ * Postcondition: Returns immutable rule node
+ */
+export function createRuleNode(
+  channels: string[],
+  condition: Expression
+): RuleNode {
+  if (channels.length === 0) {
+    throw new Error('Rule must have at least one channel');
+  }
+  
+  return {
+    kind: 'RuleNode',
+    channels,
+    condition
+  };
 }
 
 /**
- * Factory functions for creating AST nodes
+ * Creates a binary expression node (AND/OR)
  * 
- * Design decision: Factory pattern ensures proper initialization
- * Benefit: Centralized validation and type checking
- */
-
-/**
- * Creates a binary expression node
- * 
- * @param operator - Logical operator (AND/OR)
- * @param left - Left operand expression
- * @param right - Right operand expression
- * @returns New BinaryExpr node
+ * @param operator - Logical operator
+ * @param left - Left operand
+ * @param right - Right operand
+ * @returns New BinaryNode
  * 
  * Precondition: operator in {'AND', 'OR'}
  * Precondition: left and right are valid expressions
- * Postcondition: Returns immutable binary expression
+ * Postcondition: Returns immutable binary node
  */
-export function createBinaryExpr(
+export function createBinaryNode(
   operator: 'AND' | 'OR',
   left: Expression,
   right: Expression
-): BinaryExpr {
+): BinaryNode {
+  if (operator !== 'AND' && operator !== 'OR') {
+    throw new Error(`Invalid operator: ${operator}`);
+  }
+  
   return {
-    kind: 'BinaryExpr',
+    kind: 'BinaryNode',
     operator,
     left,
     right
@@ -122,25 +154,30 @@ export function createBinaryExpr(
 }
 
 /**
- * Creates a comparison expression node
+ * Creates a condition node (field comparison)
  * 
- * @param field - Field name to compare
+ * @param field - Field name
  * @param operator - Comparison operator
  * @param value - Value to compare against
- * @returns New ComparisonExpr node
+ * @returns New ConditionNode
  * 
- * Precondition: field is a valid QueryField
- * Precondition: operator is a valid QueryOperator
+ * Precondition: field is a valid field name
+ * Precondition: operator is a valid comparison operator
  * Precondition: value type matches field expectations
- * Postcondition: Returns immutable comparison expression
+ * Postcondition: Returns immutable condition node
  */
-export function createComparisonExpr(
-  field: QueryField,
-  operator: QueryOperator,
-  value: string | number | Date
-): ComparisonExpr {
+export function createConditionNode(
+  field: string,
+  operator: string,
+  value: string | number
+): ConditionNode {
+  const validOperators = ['=', '!=', '>', '<', '>=', '<='];
+  if (!validOperators.includes(operator)) {
+    throw new Error(`Invalid operator: ${operator}`);
+  }
+  
   return {
-    kind: 'ComparisonExpr',
+    kind: 'ConditionNode',
     field,
     operator,
     value
@@ -148,23 +185,8 @@ export function createComparisonExpr(
 }
 
 /**
- * Creates a field expression node
- * 
- * @param field - Field name
- * @returns New FieldExpr node
- * 
- * Precondition: field is a valid QueryField
- * Postcondition: Returns immutable field expression
- */
-export function createFieldExpr(field: QueryField): FieldExpr {
-  return {
-    kind: 'FieldExpr',
-    field
-  };
-}
-
-/**
  * AST Utilities
+ * ==============
  */
 
 /**
@@ -176,23 +198,24 @@ export function createFieldExpr(field: QueryField): FieldExpr {
  * 
  * Recursive function demonstrating recursion on recursive data types
  */
-export function printAST(node: Expression, indent: number = 0): string {
+export function printAST(node: RuleNode | Expression, indent: number = 0): string {
   const spaces = '  '.repeat(indent);
   
+  if (node.kind === 'RuleNode') {
+    return `${spaces}SEND [${node.channels.join(', ')}] WHEN\n` +
+           `${printAST(node.condition, indent + 1)}`;
+  }
+  
   switch (node.kind) {
-    case 'BinaryExpr':
-      return `${spaces}BinaryExpr(${node.operator})\n` +
+    case 'BinaryNode':
+      return `${spaces}${node.operator}\n` +
              `${printAST(node.left, indent + 1)}\n` +
              `${printAST(node.right, indent + 1)}`;
     
-    case 'ComparisonExpr':
-      return `${spaces}ComparisonExpr(${node.field} ${node.operator} ${node.value})`;
-    
-    case 'FieldExpr':
-      return `${spaces}FieldExpr(${node.field})`;
+    case 'ConditionNode':
+      return `${spaces}${node.field} ${node.operator} ${node.value}`;
     
     default:
-      // TypeScript exhaustiveness check
       const _exhaustive: never = node;
       return _exhaustive;
   }
@@ -201,32 +224,26 @@ export function printAST(node: Expression, indent: number = 0): string {
 /**
  * Validates AST structure
  * 
- * @param node - Root node to validate
+ * @param node - Node to validate
  * @returns true if AST is well-formed
- * 
- * Specification:
- * - Checks kind field matches actual type
- * - Validates no null/undefined children
- * - Recursively validates sub-trees
  * 
  * Demonstrates: Structural recursion on recursive data types
  */
-export function validateAST(node: Expression): boolean {
+export function validateAST(node: RuleNode | Expression): boolean {
+  if (node.kind === 'RuleNode') {
+    return node.channels.length > 0 && validateAST(node.condition);
+  }
+  
   switch (node.kind) {
-    case 'BinaryExpr':
+    case 'BinaryNode':
       if (!['AND', 'OR'].includes(node.operator)) {
         return false;
       }
       return validateAST(node.left) && validateAST(node.right);
     
-    case 'ComparisonExpr':
-      if (!node.field || !node.operator) {
-        return false;
-      }
-      return true;
-    
-    case 'FieldExpr':
-      return !!node.field;
+    case 'ConditionNode':
+      const validOperators = ['=', '!=', '>', '<', '>=', '<='];
+      return !!node.field && validOperators.includes(node.operator);
     
     default:
       return false;
@@ -239,16 +256,14 @@ export function validateAST(node: Expression): boolean {
  * @param node - Root node
  * @returns Total number of nodes in tree
  * 
- * Demonstrates: Recursive computation on recursive data types
  * Time complexity: O(n) where n is number of nodes
  */
 export function countNodes(node: Expression): number {
   switch (node.kind) {
-    case 'BinaryExpr':
+    case 'BinaryNode':
       return 1 + countNodes(node.left) + countNodes(node.right);
     
-    case 'ComparisonExpr':
-    case 'FieldExpr':
+    case 'ConditionNode':
       return 1;
     
     default:
@@ -262,16 +277,14 @@ export function countNodes(node: Expression): number {
  * @param node - Root node
  * @returns Maximum depth from root to leaf
  * 
- * Demonstrates: Recursive computation with maximum
  * Time complexity: O(n)
  */
 export function getDepth(node: Expression): number {
   switch (node.kind) {
-    case 'BinaryExpr':
+    case 'BinaryNode':
       return 1 + Math.max(getDepth(node.left), getDepth(node.right));
     
-    case 'ComparisonExpr':
-    case 'FieldExpr':
+    case 'ConditionNode':
       return 1;
     
     default:

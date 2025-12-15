@@ -1,20 +1,33 @@
 /**
- * Reminder Scheduler Service
+ * Reminder Scheduler Service - DSL-Driven
  * 
- * Periodically checks for upcoming events and sends reminders.
- * Runs as a background task using setInterval.
+ * Periodically checks for upcoming events and sends reminders based on
+ * admin-configured notification rules (little language DSL).
  * 
- * Reminder Schedule:
- * - 24 hours before event
- * - 1 hour before event
+ * INSTEAD OF:
+ *   Hard-coded logic like "if (hoursUntil === 24) sendEmail()"
+ * 
+ * WE USE:
+ *   Database rules like "SEND email WHEN hours_until = 24"
+ *   Parsed by DSL interpreter → evaluated dynamically
+ * 
+ * SOFTWARE CONSTRUCTION BENEFITS:
+ * - Admins change timing/channels without deployment
+ * - Grammar defines business logic, not code
+ * - Testable: mock rules, events, time
+ * - Extensible: add new fields/operators without changing scheduler
  */
 
 import * as eventRepository from '../repositories/eventRepository';
+import * as notificationRuleRepository from '../repositories/notificationRuleRepository';
 import * as notificationService from './notificationService';
 import { Event } from '../types';
+import { parse } from '../query';
+import { Interpreter } from '../query/interpreter';
+import { RuleNode } from '../query/ast';
 
 // Track which reminders have been sent to avoid duplicates
-// Key format: "eventId-reminderType" (e.g., "abc123-24h")
+// Key format: "eventId-ruleId" (e.g., "abc123-rule456")
 const sentReminders: Set<string> = new Set();
 
 // Scheduler interval reference
@@ -24,16 +37,30 @@ let schedulerInterval: ReturnType<typeof setInterval> | null = null;
 const SCHEDULER_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
 /**
- * Scans upcoming events and sends due reminders.
- * @returns count of events checked and reminders sent; effects: reads events, writes notifications, updates in-memory sentReminders.
+ * Scans upcoming events and evaluates DSL rules to send reminders.
+ * 
+ * NEW APPROACH:
+ * 1. Load enabled rules from database
+ * 2. For each event, evaluate each rule
+ * 3. If rule matches, send notification on specified channels
+ * 
+ * @returns count of events checked and reminders sent
+ * 
+ * Demonstrates: Interpreter pattern - rules are data, not code
  */
 export async function checkAndSendReminders(): Promise<{
     checked: number;
     remindersSent: number;
+    rulesEvaluated: number;
 }> {
     const upcomingEvents = await eventRepository.getUpcomingEvents();
+    const rules = await notificationRuleRepository.getEnabledRules();
     const now = new Date();
+    
     let remindersSent = 0;
+    let rulesEvaluated = 0;
+
+    console.log(`[Scheduler] Checking ${upcomingEvents.length} events against ${rules.length} rules`);
 
     for (const event of upcomingEvents) {
         const eventStart = new Date(event.start_datetime);
@@ -44,43 +71,58 @@ export async function checkAndSendReminders(): Promise<{
             continue;
         }
 
-        // Send 24-hour reminder (between 24 and 23 hours before)
-        const reminder24Key = `${event.id}-24h`;
-        if (hoursUntilEvent <= 24 && hoursUntilEvent > 23 && !sentReminders.has(reminder24Key)) {
+        // Evaluate each rule against this event
+        for (const rule of rules) {
+            rulesEvaluated++;
+            
             try {
-                await notificationService.sendEventReminder(event, 24);
-                sentReminders.add(reminder24Key);
-                remindersSent++;
-                console.log(`[Scheduler] Sent 24h reminder for event: ${event.title}`);
+                // Parse DSL rule into AST
+                const ast = parse(rule.rule_text) as RuleNode;
+                
+                // Evaluate rule condition against event
+                const result = Interpreter.evaluateRule(ast, event, now);
+                
+                // If rule matched and we haven't sent this reminder yet
+                const reminderKey = `${event.id}-${rule.id}`;
+                if (result.shouldSend && !sentReminders.has(reminderKey)) {
+                    // Send notification on all specified channels
+                    await notificationService.sendEventReminderWithChannels(
+                        event,
+                        result.channels,
+                        hoursUntilEvent
+                    );
+                    
+                    sentReminders.add(reminderKey);
+                    remindersSent++;
+                    
+                    console.log(
+                        `[Scheduler] ✓ Rule "${rule.name}" matched for "${event.title}" ` +
+                        `(${Math.floor(hoursUntilEvent)}h until) → Sent via ${result.channels.join(', ')}`
+                    );
+                }
             } catch (error) {
-                console.error(`[Scheduler] Failed to send 24h reminder for ${event.title}:`, error);
-            }
-        }
-
-        // Send 1-hour reminder (between 1 and 0 hours before)
-        const reminder1Key = `${event.id}-1h`;
-        if (hoursUntilEvent <= 1 && hoursUntilEvent > 0 && !sentReminders.has(reminder1Key)) {
-            try {
-                await notificationService.sendEventReminder(event, 1);
-                sentReminders.add(reminder1Key);
-                remindersSent++;
-                console.log(`[Scheduler] Sent 1h reminder for event: ${event.title}`);
-            } catch (error) {
-                console.error(`[Scheduler] Failed to send 1h reminder for ${event.title}:`, error);
+                console.error(
+                    `[Scheduler] ✗ Failed to evaluate rule "${rule.name}" for event "${event.title}":`,
+                    error
+                );
             }
         }
     }
 
     return {
         checked: upcomingEvents.length,
-        remindersSent
+        remindersSent,
+        rulesEvaluated
     };
 }
 
 /**
- * Starts periodic reminder checks.
+ * Starts periodic DSL-driven reminder checks.
+ * 
  * @param intervalMs optional interval in milliseconds (default 15 minutes).
- * @returns void; effects: schedules recurring timer, triggers immediate check once.
+ * 
+ * Loads rules from database on each check, so admins can add/modify rules
+ * without restarting the server.
  */
 export function startScheduler(intervalMs: number = SCHEDULER_INTERVAL_MS): void {
     if (schedulerInterval) {
@@ -88,12 +130,15 @@ export function startScheduler(intervalMs: number = SCHEDULER_INTERVAL_MS): void
         return;
     }
 
-    console.log(`[Scheduler] Starting reminder scheduler (interval: ${intervalMs / 60000} minutes)...`);
+    console.log(`[Scheduler] Starting DSL-driven reminder scheduler (interval: ${intervalMs / 60000} minutes)...`);
 
     // Run immediately on start
     checkAndSendReminders()
         .then(result => {
-            console.log(`[Scheduler] Initial check complete. Checked ${result.checked} events, sent ${result.remindersSent} reminders.`);
+            console.log(
+                `[Scheduler] Initial check: ${result.checked} events, ` +
+                `${result.rulesEvaluated} rule evaluations, ${result.remindersSent} sent`
+            );
         })
         .catch(error => {
             console.error('[Scheduler] Initial check failed:', error);
@@ -152,6 +197,7 @@ export function getSentRemindersCount(): number {
 export async function triggerManualCheck(): Promise<{
     checked: number;
     remindersSent: number;
+    rulesEvaluated: number;
 }> {
     console.log('[Scheduler] Manual check triggered');
     return checkAndSendReminders();

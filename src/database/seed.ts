@@ -4,6 +4,7 @@
  */
 
 import { createVenue } from '../repositories/venueRepository';
+import { createRule } from '../repositories/notificationRuleRepository';
 import { VenueType } from '../types';
 
 /**
@@ -38,8 +39,66 @@ export async function seedVenues(): Promise<void> {
 }
 
 /**
- * Seeds all initial data
+ * Seeds default notification rules (DSL examples)
+ * Demonstrates little language functionality
  */
-export async function seedDatabase(): Promise<void> {
+export async function seedNotificationRules(adminUserId: string): Promise<void> {
+  console.log('Seeding notification rules...');
+
+  const defaultRules = [
+    {
+      name: '24h Email Reminder',
+      description: 'Send email reminder 24 hours before event starts',
+      rule_text: 'SEND email WHEN hours_until = 24',
+      enabled: true
+    },
+    {
+      name: '1h Multi-Channel Alert',
+      description: 'Send reminder via all channels 1 hour before event',
+      rule_text: 'SEND email, sms, push WHEN hours_until = 1',
+      enabled: true
+    },
+    {
+      name: 'Large Event Early Alert',
+      description: 'Send early reminder for events with capacity over 100',
+      rule_text: 'SEND email, push WHEN hours_until = 36 AND capacity > 100',
+      enabled: false // Disabled by default
+    },
+    {
+      name: 'Last Minute Reminder',
+      description: 'Push notification 30 minutes before event with available seats',
+      rule_text: 'SEND push WHEN minutes_until = 30 AND available_seats > 0',
+      enabled: false
+    },
+    {
+      name: 'Weekly Reminder for Paid Events',
+      description: 'Email reminder 7 days before for events with admission fee',
+      rule_text: 'SEND email WHEN days_until = 7 AND price > 0',
+      enabled: false
+    }
+  ];
+
+  try {
+    for (const rule of defaultRules) {
+      await createRule({
+        ...rule,
+        created_by: adminUserId
+      });
+    }
+    console.log(`✓ Seeded ${defaultRules.length} notification rules`);
+  } catch (error) {
+    console.error('Error seeding notification rules:', error);
+  }
+}
+
+/**
+ * Seeds all initial data
+ * 
+ * @param adminUserId Optional admin user ID for creating notification rules
+ */
+export async function seedDatabase(adminUserId?: string): Promise<void> {
   await seedVenues();
+  if (adminUserId) {
+    await seedNotificationRules(adminUserId);
+  }
 }
