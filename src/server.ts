@@ -11,7 +11,8 @@ import {
   userRoutes,
   venueRoutes,
   eventRoutes,
-  registrationRoutes
+  registrationRoutes,
+  notificationRuleRoutes
 } from './routes';
 import { startStatusScheduler } from './services/statusScheduler';
 
@@ -33,6 +34,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/venues', venueRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/registrations', registrationRoutes);
+app.use('/api/notification-rules', notificationRuleRoutes);
 
 // Start server
 app.listen(PORT, () => {

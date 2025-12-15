@@ -79,6 +79,19 @@ CREATE TABLE IF NOT EXISTS notifications (
     FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
 );
 
+-- Notification Rules table (stores admin-configured DSL rules)
+CREATE TABLE IF NOT EXISTS notification_rules (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT,
+    rule_text TEXT NOT NULL,
+    enabled INTEGER DEFAULT 1,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- Indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_events_organizer ON events(organizer_id);
 CREATE INDEX IF NOT EXISTS idx_events_venue ON events(venue_id);
@@ -90,4 +103,5 @@ CREATE INDEX IF NOT EXISTS idx_notifications_event ON notifications(event_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
 CREATE INDEX IF NOT EXISTS idx_users_role_status ON users(role, status);
+CREATE INDEX IF NOT EXISTS idx_notification_rules_enabled ON notification_rules(enabled);
 `;

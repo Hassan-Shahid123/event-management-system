@@ -160,6 +160,63 @@ export async function sendEventReminder(
     }
 }
 
+/**
+ * Sends reminders through specified channels (DSL-driven).
+ * 
+ * NEW: Multi-channel support for DSL rules
+ * Channels: email, sms, push (currently all use in-app notifications)
+ * 
+ * @param event event to send reminders for
+ * @param channels array of channels (e.g., ['email', 'sms'])
+ * @param hoursUntilEvent time until event starts
+ * 
+ * Future enhancement: Integrate actual email/SMS providers
+ * - email → Nodemailer, SendGrid, etc.
+ * - sms → Twilio, AWS SNS, etc.
+ * - push → Firebase Cloud Messaging, etc.
+ */
+export async function sendEventReminderWithChannels(
+    event: Event,
+    channels: string[],
+    hoursUntilEvent: number
+): Promise<void> {
+    const registrations = await registrationRepository.getConfirmedRegistrations(event.id);
+
+    let timeText: string;
+    if (hoursUntilEvent <= 1) {
+        timeText = 'starting soon';
+    } else if (hoursUntilEvent <= 24) {
+        timeText = `in ${Math.round(hoursUntilEvent)} hours`;
+    } else {
+        const days = Math.round(hoursUntilEvent / 24);
+        timeText = days === 1 ? 'tomorrow' : `in ${days} days`;
+    }
+
+    // Format channels for display
+    const channelText = channels.map(c => c.toUpperCase()).join(' + ');
+
+    for (const reg of registrations) {
+        await notificationRepository.createNotification(
+            reg.user_id,
+            'EVENT_REMINDER',
+            `Event Reminder (via ${channelText})`,
+            `Reminder: "${event.title}" is ${timeText}. Don't forget to attend!`,
+            event.id
+        );
+    }
+
+    // TODO: Integrate actual channel providers
+    // if (channels.includes('email')) {
+    //   await sendEmail(registrations, event, timeText);
+    // }
+    // if (channels.includes('sms')) {
+    //   await sendSMS(registrations, event, timeText);
+    // }
+    // if (channels.includes('push')) {
+    //   await sendPushNotification(registrations, event, timeText);
+    // }
+}
+
 // ============================================================================
 // USER NOTIFICATION MANAGEMENT
 // ============================================================================

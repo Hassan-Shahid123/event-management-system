@@ -1,38 +1,48 @@
 /**
- * Event Query Language - Public API
+ * Notification Rule Language - Public API
  * 
  * Grammar-first DSL implementation using Peggy parser generator.
+ * Admin-configurable notification rules for event reminders.
  * 
- * SOFTWARE CONSTRUCTION CONCEPTS:
+ * SOFTWARE CONSTRUCTION CONCEPTS (MIT 6.102):
  * - Little languages (domain-specific languages)
  * - Grammar as specification
- * - Parser generators (Peggy)
+ * - Parser generators (Peggy compiles grammar → parser)
  * - Declarative language design
- * - Abstract syntax trees
- * - Interpreter pattern
+ * - Abstract syntax trees (AST)
+ * - Interpreter pattern (code as data)
  * 
- * USAGE:
+ * EXAMPLE USAGE:
  * 
- * import { parse, executeQuery } from './query';
+ * import { parse, evaluateRule } from './query';
  * 
- * // Execute query directly
- * const result = executeQuery(
- *   "status = UPCOMING AND capacity > 50",
- *   allEvents
- * );
+ * // Parse DSL rule into AST
+ * const ast = parse("SEND email, sms WHEN hours_until = 24 AND status = UPCOMING");
  * 
- * // Or parse and inspect AST first
- * const ast = parse("title CONTAINS workshop");
- * console.log(printAST(ast));
+ * // Evaluate against event
+ * const result = evaluateRule(ast, event);
+ * if (result.shouldSend) {
+ *   sendNotifications(result.channels);
+ * }
+ * 
+ * // Validate rule syntax
+ * try {
+ *   parse(ruleText);
+ *   console.log("✓ Valid rule");
+ * } catch (error) {
+ *   console.log("✗ Syntax error:", error.message);
+ * }
  */
 
 // Grammar and type definitions
 export { 
-  GRAMMAR_VERSION, 
-  SUPPORTED_FIELDS, 
-  SUPPORTED_OPERATORS,
-  QueryField,
-  QueryOperator 
+  RuleChannel,
+  RuleField,
+  RuleOperator,
+  EventStatus,
+  isValidChannel,
+  isValidField,
+  isValidOperator
 } from './grammar';
 
 // Parser (generated from query.peggy grammar)
@@ -40,13 +50,14 @@ export { parse, SyntaxError } from './parser-generated';
 
 // AST (abstract syntax tree)
 export {
+  ASTNode,
   Expression,
-  BinaryExpr,
-  ComparisonExpr,
-  FieldExpr,
-  createBinaryExpr,
-  createComparisonExpr,
-  createFieldExpr,
+  RuleNode,
+  BinaryNode,
+  ConditionNode,
+  createRuleNode,
+  createBinaryNode,
+  createConditionNode,
   printAST,
   validateAST,
   countNodes,
@@ -56,20 +67,22 @@ export {
 // Interpreter (evaluation)
 export {
   Interpreter,
-  QueryResult,
-  executeQuery
+  EvaluationContext,
+  RuleEvaluationResult
 } from './interpreter';
 
 /**
- * Query Language Documentation
+ * Notification Rule Language Documentation
  * 
- * The Event Query Language is a domain-specific language (DSL) for
- * filtering events in the CampusConnect system. It demonstrates the
- * "little languages" concept from software construction.
+ * Domain-specific language for configuring automated event notifications.
+ * Admins define WHEN to send notifications and through WHICH channels,
+ * without writing code.
  * 
  * GRAMMAR:
  * --------
- * Query        ::= Expression EOF
+ * Rule         ::= 'SEND' ChannelList 'WHEN' Expression
+ * ChannelList  ::= Channel (',' Channel)*
+ * Channel      ::= 'email' | 'sms' | 'push'
  * Expression   ::= AndExpr ( 'OR' AndExpr )*
  * AndExpr      ::= Condition ( 'AND' Condition )*
  * Condition    ::= Comparison | '(' Expression ')'
@@ -77,14 +90,23 @@ export {
  * 
  * FIELDS:
  * -------
- * title, status, organizer, venue, date, capacity
+ * Time-based:
+ *   hours_until    - Hours until event starts (computed)
+ *   minutes_until  - Minutes until event starts (computed)
+ *   days_until     - Days until event starts (computed)
+ * 
+ * Event properties:
+ *   status            - Event status (UPCOMING, CANCELLED, etc.)
+ *   capacity          - Total event capacity
+ *   available_seats   - Remaining seats
+ *   price             - Event price
+ *   title             - Event title
  * 
  * OPERATORS:
  * ----------
  * =          Equality
  * !=         Inequality
- * CONTAINS   Substring match (case-insensitive)
- * >, <       Greater/less than (numbers and dates)
+ * >, <       Greater/less than (numbers only)
  * >=, <=     Greater/less than or equal
  * 
  * LOGICAL OPERATORS:
@@ -96,50 +118,91 @@ export {
  * EXAMPLES:
  * ---------
  * 
- * 1. Find upcoming events:
- *    status = UPCOMING
+ * 1. Email reminder 24 hours before:
+ *    SEND email WHEN hours_until = 24
  * 
- * 2. Find events in a specific venue:
- *    venue = auditorium AND status = UPCOMING
+ * 2. Multi-channel reminder 1 hour before:
+ *    SEND email, sms, push WHEN hours_until = 1
  * 
- * 3. Find large events:
- *    capacity > 100
+ * 3. Early reminder for large events:
+ *    SEND email WHEN hours_until = 36 AND capacity > 100
  * 
- * 4. Find workshops or seminars:
- *    title CONTAINS workshop OR title CONTAINS seminar
+ * 4. Last-minute push for events with seats:
+ *    SEND push WHEN minutes_until = 30 AND available_seats > 0
  * 
- * 5. Complex query with grouping:
- *    (status = UPCOMING OR status = INPROGRESS) AND capacity > 50
+ * 5. Multiple time reminders:
+ *    SEND sms WHEN (hours_until = 24 OR hours_until = 1) AND status = UPCOMING
  * 
- * 6. Date range query:
- *    date > 2025-12-14 AND date < 2025-12-31
+ * 6. Weekly reminder for paid events:
+ *    SEND email WHEN days_until = 7 AND price > 0
  * 
- * SOFTWARE CONSTRUCTION CONCEPTS DEMONSTRATED:
- * --------------------------------------------
+ * SOFTWARE CONSTRUCTION CONCEPTS DEMONSTRATED (MIT 6.102):
+ * --------------------------------------------------------
  * 
- * 1. **Grammar**: Formal EBNF grammar defines the language syntax
+ * 1. **Grammar**: Formal EBNF grammar defines language syntax
+ *    - grammar.ts contains complete grammar specification
+ *    - query.peggy is PEG (Parsing Expression Grammar) for Peggy generator
  * 
- * 2. **Parsing**: Recursive descent parser converts text to AST
+ * 2. **Little Languages**: Domain-specific, not general-purpose
+ *    - Focused on notification rules only
+ *    - No loops, variables, or general computation
+ *    - Declarative: describes WHAT to do, not HOW
  * 
- * 3. **Little Languages**: Domain-specific language for event queries
+ * 3. **Parsing**: Grammar → Parser generator (Peggy) → Parser → AST
+ *    - Input: "SEND email WHEN hours_until = 24"
+ *    - Output: RuleNode with channels and condition tree
  * 
- * 4. **Recursive Data Types**: AST nodes are recursively defined
- *    (Expression contains Expression)
+ * 4. **Abstract Syntax Trees**: Recursive data structure
+ *    - RuleNode contains Expression
+ *    - Expression contains BinaryNode or ConditionNode
+ *    - BinaryNode contains left/right Expressions (recursion!)
  * 
- * 5. **Abstract Data Types**: Token, Expression, etc. with operations
+ * 5. **Interpreter Pattern**: Code as data
+ *    - Rules stored as text in database
+ *    - Parsed into AST at runtime
+ *    - Evaluated against events dynamically
+ *    - No redeployment needed for rule changes
  * 
- * 6. **Regular Expressions**: Used in lexer for pattern matching
+ * 6. **Separation of Syntax and Semantics**:
+ *    - Grammar (syntax): query.peggy, grammar.ts
+ *    - Meaning (semantics): interpreter.ts
+ *    - Parser: converts text → AST (syntax only)
+ *    - Interpreter: evaluates AST → result (semantics)
  * 
- * 7. **Specifications**: Pre/postconditions on all major methods
+ * 7. **Recursive Data Types and Functions**:
+ *    - Expression type is recursive (contains Expression)
+ *    - evaluateExpression() is recursive function
+ *    - Structural recursion: function mirrors data structure
  * 
- * 8. **Immutability**: AST nodes are readonly, queries don't mutate state
+ * 8. **Immutability**: AST nodes are readonly
+ *    - Rules don't mutate during evaluation
+ *    - Functional style: pure evaluation functions
  * 
- * 9. **Type Safety**: TypeScript ensures type correctness at compile time
+ * 9. **Type Safety**: TypeScript discriminated unions
+ *    - node.kind distinguishes node types
+ *    - Exhaustiveness checking catches missing cases
  * 
- * 10. **Separation of Concerns**: 
- *     - Lexer: tokenization
- *     - Parser: syntax analysis
- *     - Interpreter: evaluation
+ * 10. **Specifications**: Pre/postconditions documented
+ *     - Example: createRuleNode() requires non-empty channels
+ *     - Interpreter.evaluateRule() promises no side effects
+ * 
+ * ACADEMIC VALUE:
+ * ---------------
+ * This demonstrates all key concepts from MIT 6.102 Lecture 19 (Little Languages):
+ * - Domain-specific language design
+ * - Grammar-first approach
+ * - Parser generators vs. hand-coded parsers
+ * - Interpreter pattern for extensibility
+ * - Separation of concerns (syntax vs. semantics)
+ * 
+ * PRACTICAL VALUE:
+ * ----------------
+ * - Admins configure timing without deployment
+ * - Business logic lives in database, not code
+ * - Easy to add new rules without touching code
+ * - Testable: mock events, rules, and time
+ * - Extensible: add fields by updating grammar + interpreter
+ */
  * 
  * IMPLEMENTATION ARCHITECTURE:
  * ---------------------------
