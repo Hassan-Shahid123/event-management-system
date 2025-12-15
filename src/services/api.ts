@@ -89,6 +89,21 @@ export const usersAPI = {
     const response = await api.get<UserStatsResponse>('/users/stats');
     return response.data;
   },
+
+  getPendingOrganizers: async (): Promise<User[]> => {
+    const response = await api.get<User[]>('/users/pending-organizers');
+    return response.data;
+  },
+
+  approveOrganizer: async (userId: string): Promise<{ message: string; user: User }> => {
+    const response = await api.post<{ message: string; user: User }>(`/users/${userId}/approve`);
+    return response.data;
+  },
+
+  rejectOrganizer: async (userId: string): Promise<{ message: string; user: User }> => {
+    const response = await api.post<{ message: string; user: User }>(`/users/${userId}/reject`);
+    return response.data;
+  },
 };
 
 // ============================================================================

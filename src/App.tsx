@@ -14,6 +14,7 @@ import CreateEventPage from './pages/CreateEventPage';
 import EditEventPage from './pages/EditEventPage';
 import MyRegistrationsPage from './pages/MyRegistrationsPage';
 import VenuesPage from './pages/VenuesPage';
+import OrganizerRequestsPage from './pages/OrganizerRequestsPage';
 import './App.css';
 
 function App() {
@@ -74,6 +75,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <VenuesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/requests"
+                element={
+                  <ProtectedRoute>
+                    <OrganizerRequestsPage />
                   </ProtectedRoute>
                 }
               />

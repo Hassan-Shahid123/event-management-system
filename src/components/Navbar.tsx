@@ -29,10 +29,11 @@ const Navbar: React.FC = () => {
               <Link to="/events" className="nav-link">Events</Link>
               <Link to="/my-registrations" className="nav-link">My Registrations</Link>
               
-           
-              
               {user?.role === 'ADMIN' && (
-                <Link to="/venues" className="nav-link">Venues</Link>
+                <>
+                  <Link to="/venues" className="nav-link">Venues</Link>
+                  <Link to="/requests" className="nav-link">Requests</Link>
+                </>
               )}
 
               <div className="navbar-user">

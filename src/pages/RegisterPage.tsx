@@ -2,7 +2,7 @@
  * Register Page
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import type { Role } from '../types';
@@ -22,9 +22,17 @@ const RegisterPage: React.FC = () => {
     general?: string;
   }>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   
   const { register } = useAuth();
   const navigate = useNavigate();
+
+  // Scroll to top when success message is displayed
+  useEffect(() => {
+    if (successMessage) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [successMessage]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +75,20 @@ const RegisterPage: React.FC = () => {
 
     try {
       await register({ name, email, password, role });
-      navigate('/events');
+      
+      // Show success message based on role
+      if (role === 'ORGANIZER') {
+        setSuccessMessage('Your request has been sent to the admin for approval. You will be notified once approved.');
+        // Clear form
+        setName('');
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        setRole('STUDENT');
+        // Don't navigate - show message instead
+      } else {
+        navigate('/events');
+      }
     } catch (err: unknown) {
       const apiError = err as { response?: { data?: { error?: string } } };
       const errorMsg = typeof apiError.response?.data?.error === 'string'
@@ -95,6 +116,7 @@ const RegisterPage: React.FC = () => {
         <h1>CampusConnect</h1>
         <h2>Register</h2>
         
+        {successMessage && <div className="success-message">{successMessage}</div>}
         {errors.general && <div className="error-message">{errors.general}</div>}
         
         <form onSubmit={handleSubmit}>

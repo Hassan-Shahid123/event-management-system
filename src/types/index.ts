@@ -9,6 +9,8 @@
 
 export type Role = 'STUDENT' | 'ORGANIZER' | 'ADMIN';
 
+export type UserStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
 export type EventStatus = 'UPCOMING' | 'INPROGRESS' | 'COMPLETED' | 'CANCELLED';
 
 export type VenueType = 
@@ -43,6 +45,9 @@ export interface User {
     name: string;
     email: string;
     role: Role;
+    status: UserStatus;
+    approved_by?: string;
+    approved_at?: string;
     created_at: string;
 }
 

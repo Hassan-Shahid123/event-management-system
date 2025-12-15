@@ -80,6 +80,17 @@
   box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12) !important;
 }
 
+.success-message {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  border: 1px solid #a5d6a7;
+  font-weight: 500;
+}
+
 @media (max-width: 640px) {
   .auth-card {
     padding: 2rem 1.5rem;

@@ -23,19 +23,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Load user from localStorage on mount
-  useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
-  }, []);
+  const [isLoading, setIsLoading] = useState(false);
 
   const login = async (data: LoginRequest) => {
     const response = await authAPI.login(data);
@@ -47,10 +35,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const register = async (data: RegisterRequest) => {
     const response = await authAPI.register(data);
-    setToken(response.token);
-    setUser(response.user);
-    localStorage.setItem('token', response.token);
-    localStorage.setItem('user', JSON.stringify(response.user));
+    
+    // Only save auth state if user is approved (not pending)
+    if (response.user.status === 'APPROVED') {
+      setToken(response.token);
+      setUser(response.user);
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+    }
+    // For pending users, don't save auth state - they need admin approval first
   };
 
   const logout = () => {
