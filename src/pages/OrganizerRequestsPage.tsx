@@ -23,7 +23,7 @@ const OrganizerRequestsPage: React.FC = () => {
   const fetchRequests = async () => {
     try {
       setIsLoading(true);
-      const data = await usersAPI.getPendingOrganizers();
+      const data = await usersAPI.getAllOrganizerRequests();
       setRequests(data);
       setError('');
     } catch (err: unknown) {
@@ -98,7 +98,7 @@ const OrganizerRequestsPage: React.FC = () => {
     <div className="requests-page">
       <div className="requests-header">
         <h1>Organizer Requests</h1>
-        <p className="subtitle">Review and approve or reject pending organizer registration requests</p>
+        <p className="subtitle">Review and manage all organizer registration requests</p>
       </div>
 
       {error && <div className="error-banner">{error}</div>}
@@ -111,8 +111,8 @@ const OrganizerRequestsPage: React.FC = () => {
       ) : requests.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">📭</div>
-          <h2>No Pending Requests</h2>
-          <p>There are currently no organizer requests awaiting approval.</p>
+          <h2>No Organizer Requests</h2>
+          <p>There are currently no organizer requests in the system.</p>
         </div>
       ) : (
         <div className="requests-list">
@@ -121,10 +121,17 @@ const OrganizerRequestsPage: React.FC = () => {
               <div className="request-info">
                 <div className="request-header-row">
                   <h3>{request.name}</h3>
-                  <span className="badge badge-pending">Pending</span>
+                  <span className={`badge badge-${request.status.toLowerCase()}`}>
+                    {request.status}
+                  </span>
                 </div>
                 <p className="request-email">{request.email}</p>
                 <p className="request-date">Requested on: {formatDate(request.created_at)}</p>
+                {request.approved_at && (
+                  <p className="request-date">
+                    {request.status === 'APPROVED' ? 'Approved' : 'Rejected'} on: {formatDate(request.approved_at)}
+                  </p>
+                )}
                 <div className="request-meta">
                   <span className="meta-item">
                     <strong>Role:</strong> Organizer
@@ -136,20 +143,26 @@ const OrganizerRequestsPage: React.FC = () => {
               </div>
 
               <div className="request-actions">
-                <button
-                  className="btn-approve"
-                  onClick={() => handleApprove(request.id)}
-                  disabled={processingIds.has(request.id)}
-                >
-                  {processingIds.has(request.id) ? 'Processing...' : '✓ Approve'}
-                </button>
-                <button
-                  className="btn-reject"
-                  onClick={() => handleReject(request.id)}
-                  disabled={processingIds.has(request.id)}
-                >
-                  {processingIds.has(request.id) ? 'Processing...' : '✗ Reject'}
-                </button>
+                {request.status === 'PENDING' || request.status === 'REJECTED' ? (
+                  <>
+                    <button
+                      className="btn-approve"
+                      onClick={() => handleApprove(request.id)}
+                      disabled={processingIds.has(request.id)}
+                    >
+                      {processingIds.has(request.id) ? 'Processing...' : '✓ Approve'}
+                    </button>
+                    {request.status === 'PENDING' && (
+                      <button
+                        className="btn-reject"
+                        onClick={() => handleReject(request.id)}
+                        disabled={processingIds.has(request.id)}
+                      >
+                        {processingIds.has(request.id) ? 'Processing...' : '✗ Reject'}
+                      </button>
+                    )}
+                  </>
+                ) : null}
               </div>
             </div>
           ))}

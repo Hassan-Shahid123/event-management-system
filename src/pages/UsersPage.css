@@ -1,0 +1,219 @@
+/* Users Page Styling */
+
+.users-page {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.users-header {
+  margin-bottom: 2rem;
+}
+
+.users-header h1 {
+  color: var(--oxford-blue);
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.users-header .subtitle {
+  color: var(--gray-600);
+  font-size: 1.125rem;
+}
+
+/* Section styling */
+.users-section {
+  margin-bottom: 3rem;
+}
+
+.section-title {
+  color: var(--oxford-blue);
+  font-size: 1.75rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--gray-200);
+}
+
+/* Users list */
+.users-list {
+  display: grid;
+  gap: 1.5rem;
+}
+
+/* User card */
+.user-card {
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.user-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.user-info {
+  flex: 1;
+}
+
+.user-card h3 {
+  color: var(--oxford-blue);
+  font-size: 1.25rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.user-email {
+  color: var(--gray-600);
+  font-size: 1rem;
+  margin: 0.25rem 0;
+}
+
+.user-date {
+  color: var(--gray-500);
+  font-size: 0.875rem;
+  margin: 0.5rem 0;
+}
+
+.user-meta {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  flex-wrap: wrap;
+}
+
+.badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.badge-organizer {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.badge-student {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.meta-item {
+  color: var(--gray-600);
+}
+
+.meta-item strong {
+  color: var(--gray-700);
+}
+
+/* User actions */
+.user-actions {
+  flex-shrink: 0;
+}
+
+.btn-delete {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  background-color: #ef4444;
+  color: white;
+}
+
+.btn-delete:hover:not(:disabled) {
+  background-color: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.btn-delete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Empty state */
+.empty-state-small {
+  text-align: center;
+  padding: 2rem;
+  background: var(--gray-50);
+  border-radius: 8px;
+  color: var(--gray-600);
+}
+
+/* Error and loading states */
+.error-banner {
+  background-color: #fee;
+  color: #c33;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  border: 1px solid #fcc;
+}
+
+.loading-container {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.spinner {
+  border: 4px solid var(--gray-200);
+  border-top: 4px solid var(--oxford-blue);
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .users-page {
+    padding: 1rem;
+  }
+
+  .users-header h1 {
+    font-size: 2rem;
+  }
+
+  .section-title {
+    font-size: 1.5rem;
+  }
+
+  .user-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
+
+  .user-actions {
+    width: 100%;
+  }
+
+  .btn-delete {
+    width: 100%;
+  }
+
+  .user-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}

@@ -126,6 +126,16 @@
   color: #856404;
 }
 
+.badge-approved {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.badge-rejected {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
 .request-email {
   color: var(--gray-600);
   font-size: 1rem;
@@ -198,6 +208,25 @@
 .btn-reject:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.status-label {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gray-600);
+  background-color: var(--gray-100);
+}
+
+.status-label.approved {
+  color: #155724;
+  background-color: #d4edda;
+}
+
+.status-label.rejected {
+  color: #721c24;
+  background-color: #f8d7da;
 }
 
 /* Responsive design */

@@ -34,6 +34,13 @@ const RegisterPage: React.FC = () => {
     }
   }, [successMessage]);
 
+  // Scroll to top when general error is displayed
+  useEffect(() => {
+    if (errors.general) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [errors.general]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -97,8 +104,12 @@ const RegisterPage: React.FC = () => {
         ? err.message
         : 'Registration failed. Please try again.';
       
-      // Try to map API errors to specific fields
-      if (errorMsg.toLowerCase().includes('email')) {
+      // Check for rejected organizer message - show at top
+      if (errorMsg.toLowerCase().includes('rejected') || errorMsg.toLowerCase().includes('admin office')) {
+        setErrors({ general: errorMsg });
+      }
+      // Try to map other API errors to specific fields
+      else if (errorMsg.toLowerCase().includes('email')) {
         setErrors({ email: errorMsg });
       } else if (errorMsg.toLowerCase().includes('password')) {
         setErrors({ password: errorMsg });

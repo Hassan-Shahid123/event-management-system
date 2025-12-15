@@ -15,6 +15,7 @@ import EditEventPage from './pages/EditEventPage';
 import MyRegistrationsPage from './pages/MyRegistrationsPage';
 import VenuesPage from './pages/VenuesPage';
 import OrganizerRequestsPage from './pages/OrganizerRequestsPage';
+import UsersPage from './pages/UsersPage';
 import './App.css';
 
 function App() {
@@ -75,6 +76,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <VenuesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/users"
+                element={
+                  <ProtectedRoute>
+                    <UsersPage />
                   </ProtectedRoute>
                 }
               />

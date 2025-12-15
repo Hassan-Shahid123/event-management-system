@@ -48,6 +48,8 @@ export interface User {
     status: UserStatus;
     approved_by?: string;
     approved_at?: string;
+    deleted: number;
+    deleted_at?: string;
     created_at: string;
 }
 
