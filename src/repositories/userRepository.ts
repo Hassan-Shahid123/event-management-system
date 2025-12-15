@@ -230,6 +230,45 @@ export async function deleteUser(id: string): Promise<boolean> {
 }
 
 /**
+ * Freezes a user account by marking them as deleted (frozen).
+ * @param id user id to freeze.
+ * @returns updated user; effects: marks user as frozen.
+ */
+export async function freezeUser(id: string): Promise<User> {
+    const db = await getDatabase();
+    const deleted_at = new Date().toISOString();
+    
+    db.run(`UPDATE users SET deleted = 1, deleted_at = ? WHERE id = ?`, [deleted_at, id]);
+    saveDatabase();
+    
+    const updated = await getUserById(id);
+    if (!updated) {
+        throw new Error('User not found after freezing');
+    }
+    
+    return updated;
+}
+
+/**
+ * Unfreezes a user account by marking them as active.
+ * @param id user id to unfreeze.
+ * @returns updated user; effects: marks user as active.
+ */
+export async function unfreezeUser(id: string): Promise<User> {
+    const db = await getDatabase();
+    
+    db.run(`UPDATE users SET deleted = 0, deleted_at = NULL WHERE id = ?`, [id]);
+    saveDatabase();
+    
+    const updated = await getUserById(id);
+    if (!updated) {
+        throw new Error('User not found after unfreezing');
+    }
+    
+    return updated;
+}
+
+/**
  * Checks whether an email is already in use.
  * @returns true if found; effects: read-only.
  */
@@ -364,14 +403,14 @@ export async function getUserCountByRole(role: Role): Promise<number> {
 }
 
 /**
- * Returns all approved organizers (not deleted).
+ * Returns all approved organizers (including frozen ones).
  * @returns list of approved organizers; effects: read-only.
  */
 export async function getApprovedOrganizers(): Promise<User[]> {
     const db = await getDatabase();
     
     const result = db.exec(
-        `SELECT * FROM users WHERE role = 'ORGANIZER' AND status = 'APPROVED' AND deleted = 0 ORDER BY created_at DESC`
+        `SELECT * FROM users WHERE role = 'ORGANIZER' AND status = 'APPROVED' ORDER BY deleted ASC, created_at DESC`
     );
 
     return getAllRows(result).map(row => ({
@@ -390,14 +429,14 @@ export async function getApprovedOrganizers(): Promise<User[]> {
 }
 
 /**
- * Returns all students (not deleted).
+ * Returns all students (including frozen ones).
  * @returns list of students; effects: read-only.
  */
 export async function getStudents(): Promise<User[]> {
     const db = await getDatabase();
     
     const result = db.exec(
-        `SELECT * FROM users WHERE role = 'STUDENT' AND deleted = 0 ORDER BY created_at DESC`
+        `SELECT * FROM users WHERE role = 'STUDENT' ORDER BY deleted ASC, created_at DESC`
     );
 
     return getAllRows(result).map(row => ({

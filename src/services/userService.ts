@@ -338,3 +338,82 @@ export async function updateUserRole(
   const { password_hash, ...userWithoutPassword } = updatedUser;
   return userWithoutPassword;
 }
+
+/**
+ * Freezes a user account (marks as deleted/frozen).
+ * @param userId user id to freeze.
+ * @param adminId admin performing the freeze action.
+ * @returns frozen user without password_hash; effects: marks user as frozen.
+ * @throws Error when user not found or admin lacks permission.
+ */
+export async function freezeUser(
+  userId: string,
+  adminId: string
+): Promise<Omit<User, 'password_hash'>> {
+  // Verify admin permissions
+  const admin = await userRepository.getUserById(adminId);
+  if (!admin) {
+    throw new Error('Admin user not found');
+  }
+  
+  if (admin.role !== 'ADMIN') {
+    throw new Error('Only admins can freeze users');
+  }
+
+  // Prevent self-freeze
+  if (userId === adminId) {
+    throw new Error('Admins cannot freeze themselves');
+  }
+
+  // Check if user exists
+  const user = await userRepository.getUserById(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  if (user.deleted === 1) {
+    throw new Error('User is already frozen');
+  }
+
+  // Freeze the user
+  const frozenUser = await userRepository.freezeUser(userId);
+  
+  return removePasswordHash(frozenUser);
+}
+
+/**
+ * Unfreezes a user account (marks as active).
+ * @param userId user id to unfreeze.
+ * @param adminId admin performing the unfreeze action.
+ * @returns unfrozen user without password_hash; effects: marks user as active.
+ * @throws Error when user not found or admin lacks permission.
+ */
+export async function unfreezeUser(
+  userId: string,
+  adminId: string
+): Promise<Omit<User, 'password_hash'>> {
+  // Verify admin permissions
+  const admin = await userRepository.getUserById(adminId);
+  if (!admin) {
+    throw new Error('Admin user not found');
+  }
+  
+  if (admin.role !== 'ADMIN') {
+    throw new Error('Only admins can unfreeze users');
+  }
+
+  // Check if user exists
+  const user = await userRepository.getUserById(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  if (user.deleted === 0) {
+    throw new Error('User is not frozen');
+  }
+
+  // Unfreeze the user
+  const unfrozenUser = await userRepository.unfreezeUser(userId);
+  
+  return removePasswordHash(unfrozenUser);
+}

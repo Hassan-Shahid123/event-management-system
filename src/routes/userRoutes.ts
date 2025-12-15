@@ -175,4 +175,50 @@ router.post('/:id/reject', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * POST /api/users/:id/freeze
+ * Freeze a user account (admin only)
+ */
+router.post('/:id/freeze', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const token = authHeader.substring(7);
+    const { verifyToken } = await import('../services/authService');
+    const payload = verifyToken(token);
+    const adminId = payload.userId;
+
+    const user = await userService.freezeUser(req.params.id, adminId);
+    res.json({ message: 'User frozen successfully', user });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/users/:id/unfreeze
+ * Unfreeze a user account (admin only)
+ */
+router.post('/:id/unfreeze', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const token = authHeader.substring(7);
+    const { verifyToken } = await import('../services/authService');
+    const payload = verifyToken(token);
+    const adminId = payload.userId;
+
+    const user = await userService.unfreezeUser(req.params.id, adminId);
+    res.json({ message: 'User unfrozen successfully', user });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 export default router;
