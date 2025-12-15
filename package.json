@@ -5,11 +5,11 @@
   "main": "dist/index.js",
   "scripts": {
     "generate-parser": "peggy --format commonjs -o src/query/parser-generated.js src/query/query.peggy",
-    "prebuild": "npm run generate-parser",
-    "build": "tsc",
+    "copy-parser": "node -e \"require('fs').mkdirSync('dist/query', {recursive: true}); require('fs').copyFileSync('src/query/parser-generated.js', 'dist/query/parser-generated.js')\"",
+    "build": "tsc && npm run generate-parser && npm run copy-parser",
     "test": "jest",
     "start": "npm run build && node dist/server.js",
-    "dev": "npm run generate-parser && tsc && node dist/server.js",
+    "dev": "npm run build && node dist/server.js",
     "test:watch": "jest --watch",
     "lint": "eslint src/**/*.ts"
   },
