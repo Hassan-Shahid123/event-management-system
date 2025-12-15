@@ -95,6 +95,21 @@ export const usersAPI = {
     return response.data;
   },
 
+  getAllOrganizerRequests: async (): Promise<User[]> => {
+    const response = await api.get<User[]>('/users/organizer-requests');
+    return response.data;
+  },
+
+  getApprovedOrganizers: async (): Promise<User[]> => {
+    const response = await api.get<User[]>('/users/approved-organizers');
+    return response.data;
+  },
+
+  getStudents: async (): Promise<User[]> => {
+    const response = await api.get<User[]>('/users/students');
+    return response.data;
+  },
+
   approveOrganizer: async (userId: string): Promise<{ message: string; user: User }> => {
     const response = await api.post<{ message: string; user: User }>(`/users/${userId}/approve`);
     return response.data;

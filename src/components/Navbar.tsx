@@ -32,6 +32,7 @@ const Navbar: React.FC = () => {
               {user?.role === 'ADMIN' && (
                 <>
                   <Link to="/venues" className="nav-link">Venues</Link>
+                  <Link to="/users" className="nav-link">Users</Link>
                   <Link to="/requests" className="nav-link">Requests</Link>
                 </>
               )}
