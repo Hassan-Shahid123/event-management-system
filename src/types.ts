@@ -93,6 +93,8 @@ export interface User {
     status: UserStatus;
     approved_by?: string;  // User ID of admin who approved (null for auto-approved)
     approved_at?: string;  // Timestamp of approval (null for pending users)
+    deleted: number; // 0 = active, 1 = deleted by admin
+    deleted_at?: string; // Timestamp when deleted
     created_at: string;
 }
 

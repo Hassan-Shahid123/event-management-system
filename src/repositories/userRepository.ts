@@ -41,6 +41,10 @@ export async function createUser(userData: {
         password_hash: userData.password_hash,
         role: userData.role,
         status,
+        approved_by: undefined,
+        approved_at: undefined,
+        deleted: 0,
+        deleted_at: undefined,
         created_at
     };
 }
@@ -69,12 +73,13 @@ export async function getUserById(id: string): Promise<User | null> {
         status: row[5] as UserStatus,
         approved_by: row[6] as string | undefined,
         approved_at: row[7] as string | undefined,
-        created_at: row[8] as string
+        deleted: row[8] as number,
+        deleted_at: row[9] as string | undefined,
+        created_at: row[10] as string
     };
 }
 
 /**
- * Loads a user by email.
  * @returns user or null; effects: read-only.
  */
 export async function getUserByEmail(email: string): Promise<User | null> {
@@ -97,7 +102,9 @@ export async function getUserByEmail(email: string): Promise<User | null> {
         status: row[5] as UserStatus,
         approved_by: row[6] as string | undefined,
         approved_at: row[7] as string | undefined,
-        created_at: row[8] as string
+        deleted: row[8] as number,
+        deleted_at: row[9] as string | undefined,
+        created_at: row[10] as string
     };
 }
 
@@ -118,7 +125,9 @@ export async function getAllUsers(): Promise<User[]> {
         status: row[5] as UserStatus,
         approved_by: row[6] as string | undefined,
         approved_at: row[7] as string | undefined,
-        created_at: row[8] as string
+        deleted: row[8] as number,
+        deleted_at: row[9] as string | undefined,
+        created_at: row[10] as string
     }));
 }
 
@@ -142,7 +151,9 @@ export async function getUsersByRole(role: Role): Promise<User[]> {
         status: row[5] as UserStatus,
         approved_by: row[6] as string | undefined,
         approved_at: row[7] as string | undefined,
-        created_at: row[8] as string
+        deleted: row[8] as number,
+        deleted_at: row[9] as string | undefined,
+        created_at: row[10] as string
     }));
 }
 
@@ -205,13 +216,14 @@ export async function updateUser(
 }
 
 /**
- * Deletes a user by id.
- * @returns true when deletion executed; effects: removes user row.
+ * Soft deletes a user by marking them as deleted.
+ * @returns true when deletion executed; effects: marks user as deleted.
  */
 export async function deleteUser(id: string): Promise<boolean> {
     const db = await getDatabase();
+    const deleted_at = new Date().toISOString();
     
-    db.run(`DELETE FROM users WHERE id = ?`, [id]);
+    db.run(`UPDATE users SET deleted = 1, deleted_at = ? WHERE id = ?`, [deleted_at, id]);
     saveDatabase();
     
     return true;
@@ -246,7 +258,42 @@ export async function getPendingOrganizerRequests(): Promise<User[]> {
         status: row[5] as UserStatus,
         approved_by: row[6] as string | undefined,
         approved_at: row[7] as string | undefined,
-        created_at: row[8] as string
+        deleted: row[8] as number,
+        deleted_at: row[9] as string | undefined,
+        created_at: row[10] as string
+    }));
+}
+
+/**
+ * Returns all organizer requests (PENDING, APPROVED, REJECTED).
+ * @returns list of all organizers ordered by created_at desc; effects: read-only.
+ */
+export async function getAllOrganizerRequests(): Promise<User[]> {
+    const db = await getDatabase();
+    
+    const result = db.exec(
+        `SELECT * FROM users WHERE role = 'ORGANIZER' 
+         ORDER BY 
+           CASE status 
+             WHEN 'PENDING' THEN 1 
+             WHEN 'REJECTED' THEN 2 
+             WHEN 'APPROVED' THEN 3 
+           END,
+           created_at DESC`
+    );
+
+    return getAllRows(result).map(row => ({
+        id: row[0] as string,
+        name: row[1] as string,
+        email: row[2] as string,
+        password_hash: row[3] as string,
+        role: row[4] as Role,
+        status: row[5] as UserStatus,
+        approved_by: row[6] as string | undefined,
+        approved_at: row[7] as string | undefined,
+        deleted: row[8] as number,
+        deleted_at: row[9] as string | undefined,
+        created_at: row[10] as string
     }));
 }
 
@@ -262,7 +309,7 @@ export async function approveOrganizer(userId: string, adminId: string): Promise
     const approved_at = new Date().toISOString();
 
     db.run(
-        `UPDATE users SET status = 'APPROVED', approved_by = ?, approved_at = ? WHERE id = ? AND status = 'PENDING'`,
+        `UPDATE users SET status = 'APPROVED', approved_by = ?, approved_at = ? WHERE id = ? AND (status = 'PENDING' OR status = 'REJECTED')`,
         [adminId, approved_at, userId]
     );
 
@@ -315,3 +362,56 @@ export async function getUserCountByRole(role: Role): Promise<number> {
 
     return getCountValue(result);
 }
+
+/**
+ * Returns all approved organizers (not deleted).
+ * @returns list of approved organizers; effects: read-only.
+ */
+export async function getApprovedOrganizers(): Promise<User[]> {
+    const db = await getDatabase();
+    
+    const result = db.exec(
+        `SELECT * FROM users WHERE role = 'ORGANIZER' AND status = 'APPROVED' AND deleted = 0 ORDER BY created_at DESC`
+    );
+
+    return getAllRows(result).map(row => ({
+        id: row[0] as string,
+        name: row[1] as string,
+        email: row[2] as string,
+        password_hash: row[3] as string,
+        role: row[4] as Role,
+        status: row[5] as UserStatus,
+        approved_by: row[6] as string | undefined,
+        approved_at: row[7] as string | undefined,
+        deleted: row[8] as number,
+        deleted_at: row[9] as string | undefined,
+        created_at: row[10] as string
+    }));
+}
+
+/**
+ * Returns all students (not deleted).
+ * @returns list of students; effects: read-only.
+ */
+export async function getStudents(): Promise<User[]> {
+    const db = await getDatabase();
+    
+    const result = db.exec(
+        `SELECT * FROM users WHERE role = 'STUDENT' AND deleted = 0 ORDER BY created_at DESC`
+    );
+
+    return getAllRows(result).map(row => ({
+        id: row[0] as string,
+        name: row[1] as string,
+        email: row[2] as string,
+        password_hash: row[3] as string,
+        role: row[4] as Role,
+        status: row[5] as UserStatus,
+        approved_by: row[6] as string | undefined,
+        approved_at: row[7] as string | undefined,
+        deleted: row[8] as number,
+        deleted_at: row[9] as string | undefined,
+        created_at: row[10] as string
+    }));
+}
+

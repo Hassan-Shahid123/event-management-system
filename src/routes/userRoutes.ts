@@ -49,6 +49,45 @@ router.get('/pending-organizers', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/users/organizer-requests
+ * Get all organizer requests (pending, approved, rejected) (admin only)
+ */
+router.get('/organizer-requests', async (req: Request, res: Response) => {
+  try {
+    const requests = await userService.getAllOrganizerRequests();
+    res.json(requests);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/users/approved-organizers
+ * Get all approved organizers (admin only)
+ */
+router.get('/approved-organizers', async (req: Request, res: Response) => {
+  try {
+    const organizers = await userService.getApprovedOrganizers();
+    res.json(organizers);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/users/students
+ * Get all students (admin only)
+ */
+router.get('/students', async (req: Request, res: Response) => {
+  try {
+    const students = await userService.getStudents();
+    res.json(students);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/users/:id
  * Get user by ID
  */

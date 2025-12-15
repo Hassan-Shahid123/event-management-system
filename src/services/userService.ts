@@ -185,6 +185,33 @@ export async function getPendingOrganizerRequests(): Promise<Omit<User, 'passwor
 }
 
 /**
+ * Retrieves all organizer requests (PENDING, APPROVED, REJECTED).
+ * @returns list of all organizer users; effects: read-only.
+ */
+export async function getAllOrganizerRequests(): Promise<Omit<User, 'password_hash'>[]> {
+  const requests = await userRepository.getAllOrganizerRequests();
+  return removePasswordHashes(requests);
+}
+
+/**
+ * Retrieves all approved organizers (not deleted).
+ * @returns list of approved organizers; effects: read-only.
+ */
+export async function getApprovedOrganizers(): Promise<Omit<User, 'password_hash'>[]> {
+  const organizers = await userRepository.getApprovedOrganizers();
+  return removePasswordHashes(organizers);
+}
+
+/**
+ * Retrieves all students (not deleted).
+ * @returns list of students; effects: read-only.
+ */
+export async function getStudents(): Promise<Omit<User, 'password_hash'>[]> {
+  const students = await userRepository.getStudents();
+  return removePasswordHashes(students);
+}
+
+/**
  * Approves an organizer request.
  * @param userId organizer user id to approve.
  * @param adminId requires existing ADMIN performing the approval.
@@ -215,8 +242,8 @@ export async function approveOrganizerRequest(
     throw new Error('User is not an organizer');
   }
 
-  if (user.status !== 'PENDING') {
-    throw new Error('User request is not pending');
+  if (user.status !== 'PENDING' && user.status !== 'REJECTED') {
+    throw new Error('User request cannot be approved (already approved)');
   }
 
   // Approve the organizer

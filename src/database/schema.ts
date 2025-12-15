@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS users (
     status TEXT NOT NULL CHECK(status IN ('PENDING', 'APPROVED', 'REJECTED')) DEFAULT 'APPROVED',
     approved_by TEXT,
     approved_at TEXT,
+    deleted INTEGER NOT NULL DEFAULT 0,
+    deleted_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL
 );

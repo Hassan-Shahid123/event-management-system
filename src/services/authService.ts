@@ -61,6 +61,10 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
   // Check if email already exists
   const existingUser = await userRepository.getUserByEmail(input.email);
   if (existingUser) {
+    // Special message for rejected organizers trying to re-register
+    if (existingUser.status === 'REJECTED' && input.role === 'ORGANIZER') {
+      throw new Error('Your previous organizer request was rejected. Please visit the admin office for more information.');
+    }
     throw new Error('Email already registered');
   }
 
@@ -104,6 +108,11 @@ export async function login(input: LoginInput): Promise<AuthResult> {
   const user = await userRepository.getUserByEmail(input.email);
   if (!user) {
     throw new Error('Invalid email or password');
+  }
+
+  // Check if account is deleted
+  if (user.deleted === 1) {
+    throw new Error('Your account has been deleted by the administrator. Please contact admin for more information.');
   }
 
   // Check user status
