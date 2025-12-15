@@ -136,9 +136,6 @@ const OrganizerRequestsPage: React.FC = () => {
                   <span className="meta-item">
                     <strong>Role:</strong> Organizer
                   </span>
-                  <span className="meta-item">
-                    <strong>User ID:</strong> {request.id}
-                  </span>
                 </div>
               </div>
 

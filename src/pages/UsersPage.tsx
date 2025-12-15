@@ -110,9 +110,7 @@ const UsersPage: React.FC = () => {
                       <p className="user-date">Joined: {formatDate(organizer.created_at)}</p>
                       <div className="user-meta">
                         <span className="badge badge-organizer">Organizer</span>
-                        <span className="meta-item">
-                          <strong>User ID:</strong> {organizer.id}
-                        </span>
+                       
                       </div>
                     </div>
                     <div className="user-actions">
@@ -147,9 +145,7 @@ const UsersPage: React.FC = () => {
                       <p className="user-date">Joined: {formatDate(student.created_at)}</p>
                       <div className="user-meta">
                         <span className="badge badge-student">Student</span>
-                        <span className="meta-item">
-                          <strong>User ID:</strong> {student.id}
-                        </span>
+                      
                       </div>
                     </div>
                     <div className="user-actions">
