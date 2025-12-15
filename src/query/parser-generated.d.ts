@@ -2,7 +2,7 @@
  * Type declarations for Peggy-generated parser
  */
 
-import { Expression } from './ast';
+import { RuleNode } from './ast';
 
 export interface SyntaxError extends Error {
   location: {
@@ -13,4 +13,4 @@ export interface SyntaxError extends Error {
   found?: string;
 }
 
-export function parse(input: string): Expression;
+export function parse(input: string): RuleNode;

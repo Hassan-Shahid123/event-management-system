@@ -179,7 +179,7 @@ export function isValidField(field: string): field is RuleField {
 export function isValidOperator(operator: string): operator is RuleOperator {
   return ['=', '!=', '>', '<', '>=', '<='].includes(operator);
 }
- * 
+/** 
  * 2. **Recursive structure**: Expression grammar is recursive, allowing arbitrary
  *    nesting with parentheses for complex queries.
  * 

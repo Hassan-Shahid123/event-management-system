@@ -234,53 +234,24 @@ function peg$parse(input, options) {
   const peg$e30 = peg$classExpectation([" ", "\t", "\r", "\n"], false, false, false);
   const peg$e31 = peg$anyExpectation();
 
-<<<<<<< HEAD
-  function peg$f0(expr) {    return expr;  }
-  function peg$f1(left, right) {
-    return createBinaryExpr('OR', left, right);
-  }
-  function peg$f2(left, right) {
-    return createBinaryExpr('AND', left, right);
-  }
-  function peg$f3(expr) {    return expr;  }
-  function peg$f4(field, op, value) {
-    return createComparisonExpr(field, op, value);
-  }
-  function peg$f5() {    return 'CONTAINS';  }
-  function peg$f6() {    return '>=';  }
-  function peg$f7() {    return '<=';  }
-  function peg$f8() {    return '!=';  }
-  function peg$f9() {    return '=';  }
-  function peg$f10() {    return '>';  }
-  function peg$f11() {    return '<';  }
-  function peg$f12() {    return 'title';  }
-  function peg$f13() {    return 'status';  }
-  function peg$f14() {    return 'organizer';  }
-  function peg$f15() {    return 'venue';  }
-  function peg$f16() {    return 'date';  }
-  function peg$f17() {    return 'capacity';  }
-  function peg$f18(value) {
-    return new Date(value);
-=======
   function peg$f0(channels, condition) {
-      return createRuleNode(channels, condition);
+    return createRuleNode(channels, condition);
   }
   function peg$f1(first, rest) {
-      return [first, ...rest.map(r => r[3])];
+    return [first, ...rest.map(r => r[3])];
   }
   function peg$f2() {    return 'email';  }
   function peg$f3() {    return 'sms';  }
   function peg$f4() {    return 'push';  }
   function peg$f5(left, right) {
-      return createBinaryNode('OR', left, right);
+    return createBinaryNode('OR', left, right);
   }
   function peg$f6(left, right) {
-      return createBinaryNode('AND', left, right);
->>>>>>> origin/dev
+    return createBinaryNode('AND', left, right);
   }
   function peg$f7(expr) {    return expr;  }
   function peg$f8(field, op, value) {
-      return createConditionNode(field, op, value);
+    return createConditionNode(field, op, value);
   }
   function peg$f9() {    return '>=';  }
   function peg$f10() {    return '<=';  }

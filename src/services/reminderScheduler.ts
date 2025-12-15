@@ -77,7 +77,7 @@ export async function checkAndSendReminders(): Promise<{
             
             try {
                 // Parse DSL rule into AST
-                const ast = parse(rule.rule_text) as RuleNode;
+                const ast = parse(rule.rule_text);
                 
                 // Evaluate rule condition against event
                 const result = Interpreter.evaluateRule(ast, event, now);
