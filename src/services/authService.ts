@@ -7,7 +7,7 @@ import { removePasswordHash } from '../utils/userHelpers';
 
 // JWT configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-const JWT_EXPIRES_IN = '7d';
+const JWT_EXPIRES_IN = '24h';
 /** Number of bcrypt salt rounds for password hashing (10 is recommended balance of security and performance) */
 const SALT_ROUNDS = 10;
 
@@ -167,10 +167,13 @@ export function verifyToken(token: string): TokenPayload {
  * @returns signed token embedding user id, email, and role; effects: none.
  */
 function generateToken(user: User): string {
-  const payload: TokenPayload = {
+  const payload = {
+    id: user.id,
     userId: user.id,
     email: user.email,
+    name: user.name,
     role: user.role,
+    status: user.status,
   };
 
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
