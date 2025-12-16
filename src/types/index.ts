@@ -80,6 +80,14 @@ export interface EventRegistration {
     registered_at: string;
 }
 
+export interface EventRegistrationWithUser extends EventRegistration {
+    user: {
+        id: string;
+        name: string;
+        email: string;
+    };
+}
+
 export interface Notification {
     id: string;
     user_id: string;

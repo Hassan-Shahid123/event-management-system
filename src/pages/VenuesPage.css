@@ -4,6 +4,59 @@
   animation: fadeIn 0.5s ease-in-out;
 }
 
+.venues-header {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.venues-header h1 {
+  color: var(--oxford-blue);
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 800;
+}
+
+.venues-header .subtitle {
+  color: var(--gray-600);
+  font-size: 1.125rem;
+}
+
+.venue-actions {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+/* Search bar */
+.search-bar {
+  margin-bottom: 2.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.search-input {
+  width: 100%;
+  max-width: 600px;
+  padding: 1rem 1.5rem;
+  border: 2px solid var(--gray-200);
+  border-radius: 12px;
+  font-size: 1.125rem;
+  transition: all 0.3s ease;
+  background: white;
+  box-shadow: var(--shadow-sm);
+  color: var(--gray-900);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--oxford-blue);
+  box-shadow: 0 0 0 3px rgba(0, 33, 71, 0.1), var(--shadow-md);
+}
+
+.search-input::placeholder {
+  color: var(--gray-400);
+}
+
 .create-venue-form {
   background: white;
   padding: 2.5rem 2rem;

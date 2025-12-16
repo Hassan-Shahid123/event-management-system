@@ -13,6 +13,8 @@ const VenuesPage: React.FC = () => {
   const { user } = useAuth();
   const notification = useNotification();
   const [venues, setVenues] = useState<Venue[]>([]);
+  const [filteredVenues, setFilteredVenues] = useState<Venue[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -31,11 +33,28 @@ const VenuesPage: React.FC = () => {
     loadVenues();
   }, []);
 
+  useEffect(() => {
+    // Filter venues based on search term
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      setFilteredVenues(
+        venues.filter(
+          venue =>
+            venue.location.toLowerCase().includes(term) ||
+            venue.type.toLowerCase().includes(term)
+        )
+      );
+    } else {
+      setFilteredVenues(venues);
+    }
+  }, [searchTerm, venues]);
+
   const loadVenues = async () => {
     try {
       setIsLoading(true);
       const data = await venuesAPI.getAll();
       setVenues(data);
+      setFilteredVenues(data);
     } catch (err: any) {
       setError('Failed to load venues');
     } finally {
@@ -136,8 +155,12 @@ const VenuesPage: React.FC = () => {
 
   return (
     <div className="venues-page">
-      <div className="page-header">
+      <div className="venues-header">
         <h1>Venue Management</h1>
+        <p className="subtitle">Manage campus venues and their availability</p>
+      </div>
+
+      <div className="venue-actions">
         <button
           onClick={() => setShowCreateForm(!showCreateForm)}
           className="btn-primary"
@@ -145,6 +168,18 @@ const VenuesPage: React.FC = () => {
           {showCreateForm ? 'Cancel' : 'Add New Venue'}
         </button>
       </div>
+
+      {!showCreateForm && (
+        <div className="search-bar">
+          <input
+            type="text"
+            placeholder="Search venues by location or type..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="search-input"
+          />
+        </div>
+      )}
 
       {error && <div className="error-message">{error}</div>}
 
@@ -207,13 +242,14 @@ const VenuesPage: React.FC = () => {
         </div>
       )}
 
-      <div className="venues-list">
-        <h2>All Venues ({venues.length})</h2>
-        {venues.length === 0 ? (
-          <div className="no-venues">No venues available</div>
-        ) : (
-          <div className="venues-grid">
-            {venues.map((venue) => (
+      {!showCreateForm && (
+        <div className="venues-list">
+          <h2>All Venues ({filteredVenues.length})</h2>
+          {filteredVenues.length === 0 ? (
+            <div className="no-venues">{searchTerm ? 'No venues found matching your search.' : 'No venues available'}</div>
+          ) : (
+            <div className="venues-grid">
+              {filteredVenues.map((venue) => (
               <div key={venue.id} className="venue-card">
                 <div className="venue-header">
                   <h3>{venue.location}</h3>
@@ -317,7 +353,8 @@ const VenuesPage: React.FC = () => {
             ))}
           </div>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

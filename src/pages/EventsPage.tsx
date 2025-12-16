@@ -85,14 +85,18 @@ const EventsPage: React.FC = () => {
 
   return (
     <div className="events-page">
-      <div className="page-header">
+      <div className="events-header">
         <h1>Campus Events</h1>
-        {(user?.role === 'ORGANIZER' || user?.role === 'ADMIN') && (
+        <p className="subtitle">Discover and register for upcoming campus activities</p>
+      </div>
+
+      {(user?.role === 'ORGANIZER' || user?.role === 'ADMIN') && (
+        <div className="create-button-wrapper">
           <Link to="/events/create" className="btn-primary">
             Create Event
           </Link>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="search-bar">
         <input

@@ -9,7 +9,7 @@ import { eventsAPI, venuesAPI, registrationsAPI, usersAPI } from '../services/ap
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { format } from 'date-fns';
-import type { Event, Venue, User, RegistrationStatsResponse } from '../types';
+import type { Event, Venue, User, RegistrationStatsResponse, EventRegistrationWithUser } from '../types';
 import './EventDetailsPage.css';
 
 const EventDetailsPage: React.FC = () => {
@@ -22,6 +22,7 @@ const EventDetailsPage: React.FC = () => {
   const [venue, setVenue] = useState<Venue | null>(null);
   const [organizer, setOrganizer] = useState<User | null>(null);
   const [stats, setStats] = useState<RegistrationStatsResponse | null>(null);
+  const [registeredUsers, setRegisteredUsers] = useState<EventRegistrationWithUser[]>([]);
   const [isRegistered, setIsRegistered] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -64,6 +65,20 @@ const EventDetailsPage: React.FC = () => {
         const userRegistrations = await registrationsAPI.getUserRegistrations(user.id);
         const registered = userRegistrations.some(reg => reg.event_id === id);
         setIsRegistered(registered);
+
+        // If user is the organizer of this event, load registered users list
+        if (eventData.organizer_id === user.id) {
+          console.log('Loading registered users for organizer. Event ID:', id, 'User ID:', user.id);
+          try {
+            const registrationsWithUsers = await registrationsAPI.getEventRegistrationsWithUsers(id, user.id);
+            console.log('Registered users loaded:', registrationsWithUsers);
+            setRegisteredUsers(registrationsWithUsers);
+          } catch (err) {
+            console.error('Failed to load registered users:', err);
+          }
+        } else {
+          console.log('User is not the organizer. Event organizer_id:', eventData.organizer_id, 'User id:', user.id);
+        }
       }
     } catch (err: any) {
       console.error('Failed to load event details:', err);
@@ -76,11 +91,6 @@ const EventDetailsPage: React.FC = () => {
   const handleRegister = async () => {
     if (!user) {
       navigate('/login');
-      return;
-    }
-
-    if (user.role !== 'STUDENT') {
-      notification.warning('Only students can register for events.');
       return;
     }
 
@@ -144,6 +154,11 @@ const EventDetailsPage: React.FC = () => {
     return user.role === 'ADMIN' || event.organizer_id === user.id;
   };
 
+  const isOrganizer = () => {
+    if (!user || !event) return false;
+    return event.organizer_id === user.id;
+  };
+
   const isStudent = user?.role === 'STUDENT';
 
   const formatDateTime = (dateStr: string) => {
@@ -189,69 +204,71 @@ const EventDetailsPage: React.FC = () => {
         </div>
 
         <div className="event-content">
-          <section className="event-section">
+          <section className="event-section full-width">
             <h2>Description</h2>
             <p>{event.description}</p>
           </section>
 
-          <section className="event-section">
-            <h2>Date & Time</h2>
-            <div className="datetime-info">
-              <div>
-                <strong>Starts:</strong> {formatDateTime(event.start_datetime)}
-              </div>
-              <div>
-                <strong>Ends:</strong> {formatDateTime(event.end_datetime)}
-              </div>
-            </div>
-          </section>
-
-          <section className="event-section">
-            <h2>Venue</h2>
-            {venue && (
-              <div>
-                <div><strong>Location:</strong> {venue.location}</div>
-                <div><strong>Type:</strong> {venue.type}</div>
-                {venue.capacity && (
-                  <div><strong>Capacity:</strong> {venue.capacity} people</div>
-                )}
-              </div>
-            )}
-          </section>
-
-          <section className="event-section">
-            <h2>Organizer</h2>
-            {organizer && (
-              <div>
-                <div><strong>Name:</strong> {organizer.name}</div>
-                <div><strong>Email:</strong> {organizer.email}</div>
-              </div>
-            )}
-          </section>
-
-          <section className="event-section">
-            <h2>Registration Status</h2>
-            {stats && (
-              <div className="registration-stats">
+          <div className="info-grid">
+            <section className="event-section">
+              <h2>Date & Time</h2>
+              <div className="info-list">
                 <div>
-                  <strong>Confirmed:</strong> {stats.confirmed}
+                  <strong>Starts:</strong> {formatDateTime(event.start_datetime)}
                 </div>
                 <div>
-                  <strong>Waitlisted:</strong> {stats.waitlisted}
+                  <strong>Ends:</strong> {formatDateTime(event.end_datetime)}
                 </div>
-                <div>
-                  <strong>Total Registered:</strong> {stats.total}
+              </div>
+            </section>
+
+            <section className="event-section">
+              <h2>Venue</h2>
+              {venue && (
+                <div className="info-list">
+                  <div><strong>Location:</strong> {venue.location}</div>
+                  <div><strong>Type:</strong> {venue.type}</div>
+                  {venue.capacity && (
+                    <div><strong>Capacity:</strong> {venue.capacity} people</div>
+                  )}
                 </div>
-                {stats.capacity && (
+              )}
+            </section>
+
+            <section className="event-section">
+              <h2>Organizer</h2>
+              {organizer && (
+                <div className="info-list">
+                  <div><strong>Name:</strong> {organizer.name}</div>
+                  <div><strong>Email:</strong> {organizer.email}</div>
+                </div>
+              )}
+            </section>
+
+            <section className="event-section">
+              <h2>Registration Status</h2>
+              {stats && (
+                <div className="info-list">
                   <div>
-                    <strong>Available Spots:</strong> {Math.max(0, stats.capacity - stats.confirmed)}
+                    <strong>Confirmed:</strong> {stats.confirmed}
                   </div>
-                )}
-              </div>
-            )}
-          </section>
+                  <div>
+                    <strong>Waitlisted:</strong> {stats.waitlisted}
+                  </div>
+                  <div>
+                    <strong>Total:</strong> {stats.total}
+                  </div>
+                  {stats.capacity && (
+                    <div>
+                      <strong>Available:</strong> {Math.max(0, stats.capacity - stats.confirmed)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+          </div>
 
-          {user && event.status === 'UPCOMING' && isStudent && (
+          {user && event.status === 'UPCOMING' && (
             <div className="registration-actions">
               {isRegistered ? (
                 <button
@@ -273,15 +290,37 @@ const EventDetailsPage: React.FC = () => {
             </div>
           )}
 
-          {user && event.status === 'UPCOMING' && !isStudent && (
-            <div className="info-message">
-              Registration is available to students only.
-            </div>
-          )}
-
           {event.status !== 'UPCOMING' && (
             <div className="info-message">
               Registration is closed for this event.
+            </div>
+          )}
+
+          {isOrganizer() && (
+            <div className="registered-users-section">
+              <h2>Registered Participants ({registeredUsers.length})</h2>
+              {registeredUsers.length === 0 ? (
+                <div className="info-message">No participants registered yet.</div>
+              ) : (
+                <div className="registered-users-list">
+                  {registeredUsers.map((reg) => (
+                    <div key={reg.id} className="registered-user-card">
+                      <div className="user-info">
+                        <div className="user-name">{reg.user.name}</div>
+                        <div className="user-email">{reg.user.email}</div>
+                      </div>
+                      <div className="registration-info">
+                        <span className={`status-badge status-${reg.status.toLowerCase()}`}>
+                          {reg.status}
+                        </span>
+                        <div className="registered-date">
+                          {format(new Date(reg.registered_at), 'MMM dd, yyyy')}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

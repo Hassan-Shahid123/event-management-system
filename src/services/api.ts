@@ -12,6 +12,7 @@ import type {
   Event,
   Venue,
   EventRegistration,
+  EventRegistrationWithUser,
   CreateEventRequest,
   UpdateEventRequest,
   ChangeEventStatusRequest,
@@ -239,6 +240,17 @@ export const registrationsAPI = {
 
   getEventStats: async (eventId: string): Promise<RegistrationStatsResponse> => {
     const response = await api.get<RegistrationStatsResponse>(`/registrations/event/${eventId}/stats`);
+    return response.data;
+  },
+
+  getEventRegistrationsWithUsers: async (
+    eventId: string,
+    requestingUserId: string
+  ): Promise<EventRegistrationWithUser[]> => {
+    const response = await api.get<EventRegistrationWithUser[]>(
+      `/registrations/event/${eventId}/users`,
+      { params: { requestingUserId } }
+    );
     return response.data;
   },
 };

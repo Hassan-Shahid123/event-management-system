@@ -19,6 +19,8 @@ interface EventWithRegistration {
 const MyRegistrationsPage: React.FC = () => {
   const { user } = useAuth();
   const [registrations, setRegistrations] = useState<EventWithRegistration[]>([]);
+  const [filteredRegistrations, setFilteredRegistrations] = useState<EventWithRegistration[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -28,6 +30,22 @@ const MyRegistrationsPage: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  useEffect(() => {
+    // Filter registrations based on search term
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      setFilteredRegistrations(
+        registrations.filter(
+          ({ event }) =>
+            event.title.toLowerCase().includes(term) ||
+            event.description.toLowerCase().includes(term)
+        )
+      );
+    } else {
+      setFilteredRegistrations(registrations);
+    }
+  }, [searchTerm, registrations]);
 
   const loadRegistrations = async () => {
     if (!user) {
@@ -56,6 +74,7 @@ const MyRegistrationsPage: React.FC = () => {
 
       // Filter out failed event loads
       setRegistrations(withEvents.filter(item => item !== null) as any[]);
+      setFilteredRegistrations(withEvents.filter(item => item !== null) as any[]);
     } catch (err: any) {
       console.error('Failed to load registrations:', err);
       setError(err.response?.data?.error || 'Failed to load registrations');
@@ -78,20 +97,33 @@ const MyRegistrationsPage: React.FC = () => {
 
   return (
     <div className="my-registrations-page">
-      <h1>My Registrations</h1>
+      <div className="registrations-header">
+        <h1>My Registrations</h1>
+        <p className="subtitle">View and manage your event registrations</p>
+      </div>
+
+      <div className="search-bar">
+        <input
+          type="text"
+          placeholder="Search events by title or description..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="search-input"
+        />
+      </div>
 
       {error && <div className="error-message">{error}</div>}
 
-      {registrations.length === 0 ? (
+      {filteredRegistrations.length === 0 ? (
         <div className="no-registrations">
-          <p>You haven't registered for any events yet.</p>
+          <p>{searchTerm ? 'No registrations found matching your search.' : "You haven't registered for any events yet."}</p>
           <Link to="/events" className="btn-primary">
             Browse Events
           </Link>
         </div>
       ) : (
         <div className="registrations-list">
-          {registrations.map(({ event, registration }) => (
+          {filteredRegistrations.map(({ event, registration }) => (
             <Link
               to={`/events/${event.id}`}
               key={registration.id}

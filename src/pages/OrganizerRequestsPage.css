@@ -8,6 +8,7 @@
 
 .requests-header {
   margin-bottom: 2rem;
+  text-align: center;
 }
 
 .requests-header h1 {
@@ -24,10 +25,13 @@
 /* Search bar */
 .search-bar {
   margin-bottom: 2rem;
+  display: flex;
+  justify-content: center;
 }
 
 .search-input {
   width: 100%;
+  max-width: 600px;
   padding: 0.875rem 1.25rem;
   font-size: 1rem;
   border: 2px solid var(--gray-300);

@@ -4,6 +4,37 @@
   animation: fadeIn 0.5s ease-in-out;
 }
 
+.events-header {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.events-header h1 {
+  color: var(--oxford-blue);
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 800;
+}
+
+.events-header .subtitle {
+  color: var(--gray-600);
+  font-size: 1.125rem;
+}
+
+.events-page h1 {
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
+  color: var(--gray-900);
+  font-weight: 800;
+  text-align: center;
+}
+
+.create-button-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -24,6 +55,8 @@
 
 .search-bar {
   margin-bottom: 2.5rem;
+  display: flex;
+  justify-content: center;
 }
 
 .search-input {
