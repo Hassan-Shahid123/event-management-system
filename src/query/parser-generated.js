@@ -229,17 +229,17 @@ function peg$parse(input, options) {
   const peg$e28 = peg$anyExpectation();
 
   function peg$f0(condition) {
-      return createRuleNode(condition);
+    return createRuleNode(condition);
   }
   function peg$f1(left, right) {
-      return createBinaryNode('OR', left, right);
+    return createBinaryNode('OR', left, right);
   }
   function peg$f2(left, right) {
-      return createBinaryNode('AND', left, right);
+    return createBinaryNode('AND', left, right);
   }
   function peg$f3(expr) {    return expr;  }
   function peg$f4(field, op, value) {
-      return createConditionNode(field, op, value);
+    return createConditionNode(field, op, value);
   }
   function peg$f5() {    return '>=';  }
   function peg$f6() {    return '<=';  }
