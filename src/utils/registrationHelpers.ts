@@ -28,9 +28,9 @@ export async function validateRegistrationEligibility(
     throw new Error('User not found');
   }
 
-  // Only students can register for events
-  if (user.role !== 'STUDENT') {
-    throw new Error('Only students can register for events');
+  // Students, organizers, and admins can register for events
+  if (user.role !== 'STUDENT' && user.role !== 'ORGANIZER' && user.role !== 'ADMIN') {
+    throw new Error('Invalid user role for event registration');
   }
 
   // Validate event exists

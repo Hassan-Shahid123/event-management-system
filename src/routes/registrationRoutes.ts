@@ -74,6 +74,26 @@ router.get('/event/:eventId/stats', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/registrations/event/:eventId/users
+ * Get all registrations with user details for an event (organizer/admin only)
+ */
+router.get('/event/:eventId/users', async (req: Request, res: Response) => {
+  try {
+    const requestingUserId = req.query.requestingUserId as string;
+    if (!requestingUserId) {
+      return res.status(400).json({ error: 'requestingUserId is required' });
+    }
+    const registrations = await registrationService.getEventRegistrationsWithUsers(
+      req.params.eventId,
+      requestingUserId
+    );
+    res.json(registrations);
+  } catch (error: any) {
+    res.status(error.message.includes('not found') ? 404 : 403).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/registrations/user/:userId
  * Get all registrations for a user
  */
