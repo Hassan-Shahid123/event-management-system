@@ -13,7 +13,7 @@ import {
 /**
  * Registers a student for an event using a database transaction.
  * @param eventId requires existing UPCOMING event whose start is in the future and whose venue exists.
- * @param userId requires existing user with role STUDENT; user must not already be registered.
+ * @param userId requires existing user with role STUDENT, ORGANIZER, or ADMIN; user must not already be registered.
  * @returns registration and resulting status (CONFIRMED or WAITLISTED); effects: inserts registration row atomically and may enqueue notification.
  * @throws Error when validation fails or the transaction cannot be completed.
  */
@@ -416,4 +416,50 @@ export async function getOverallRegistrationStats(): Promise<{
     confirmedRegistrations: totalConfirmed,
     waitlistedRegistrations: totalWaitlisted,
   };
+}
+
+/**
+ * Gets all registrations for an event with user details.
+ * @param eventId requires existing event.
+ * @param requestingUserId requires event organizer or ADMIN.
+ * @returns registrations with user details (without password); effects: read-only.
+ * @throws Error when event missing or caller unauthorized.
+ */
+export async function getEventRegistrationsWithUsers(
+  eventId: string,
+  requestingUserId: string
+): Promise<Array<EventRegistration & { user: { id: string; name: string; email: string } }>> {
+  // Validate event exists
+  const event = await eventRepository.getEventById(eventId);
+  if (!event) {
+    throw new Error('Event not found');
+  }
+
+  // Validate requesting user has permission
+  const requestingUser = await userRepository.getUserById(requestingUserId);
+  if (!requestingUser) {
+    throw new Error('User not found');
+  }
+
+  requireEventPermission(requestingUser, event);
+
+  // Get registrations
+  const registrations = await registrationRepository.getEventRegistrations(eventId);
+
+  // Fetch user details for each registration
+  const registrationsWithUsers = await Promise.all(
+    registrations.map(async (reg) => {
+      const user = await userRepository.getUserById(reg.user_id);
+      return {
+        ...reg,
+        user: {
+          id: user!.id,
+          name: user!.name,
+          email: user!.email,
+        },
+      };
+    })
+  );
+
+  return registrationsWithUsers;
 }
