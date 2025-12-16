@@ -4,6 +4,10 @@
  * Main Express application setup with route mounting.
  */
 
+// Load environment variables FIRST
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import {
@@ -15,6 +19,7 @@ import {
   notificationRuleRoutes
 } from './routes';
 import { startStatusScheduler } from './services/statusScheduler';
+import { startScheduler as startReminderScheduler } from './services/reminderScheduler';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -42,6 +47,8 @@ app.listen(PORT, () => {
   console.log(`Health check: http://localhost:${PORT}/health`);
   // Start background status synchronizer
   startStatusScheduler();
+  // Start email reminder scheduler (every 1 minute for testing)
+  startReminderScheduler(60000); // 60000ms = 1 minute
 });
 
 export default app;

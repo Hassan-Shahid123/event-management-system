@@ -20,14 +20,79 @@
 
 import * as eventRepository from '../repositories/eventRepository';
 import * as notificationRuleRepository from '../repositories/notificationRuleRepository';
-import * as notificationService from './notificationService';
+import * as registrationRepository from '../repositories/registrationRepository';
+import * as userRepository from '../repositories/userRepository';
 import { Event } from '../types';
 import { parse } from '../query';
 import { Interpreter } from '../query/interpreter';
-import { RuleNode } from '../query/ast';
+import { sendEmail, formatEventReminderEmail } from './emailService';
+import { getDatabase, reloadDatabase, saveDatabase } from '../database';
+import { v4 as uuidv4 } from 'uuid';
+
+/**
+ * Helper to format datetime for display
+ */
+function formatDateTime(isoString: string): string {
+    return new Date(isoString).toLocaleString('en-US', {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+    });
+}
+
+/**
+ * Check if reminder was already sent (from database)
+ */
+async function wasReminderSent(eventId: string, ruleId: string, userId: string): Promise<boolean> {
+    const db = await getDatabase();
+    const result = db.exec(
+        `SELECT 1 FROM sent_reminders WHERE event_id = ? AND rule_id = ? AND user_id = ?`,
+        [eventId, ruleId, userId]
+    );
+    return result.length > 0 && result[0].values.length > 0;
+}
+
+/**
+ * Mark reminder as sent (in database)
+ */
+async function markReminderSent(eventId: string, ruleId: string, userId: string): Promise<void> {
+    const db = await getDatabase();
+    db.run(
+        `INSERT OR IGNORE INTO sent_reminders (id, event_id, rule_id, user_id) VALUES (?, ?, ?, ?)`,
+        [uuidv4(), eventId, ruleId, userId]
+    );
+    // Save to disk immediately to persist across reloads
+    saveDatabase();
+}
+
+/**
+ * Clean up sent_reminders for completed/cancelled events
+ * Runs automatically to prevent database bloat
+ */
+async function cleanupCompletedEventReminders(): Promise<number> {
+    const db = await getDatabase();
+    const result = db.exec(`
+        DELETE FROM sent_reminders 
+        WHERE event_id IN (
+            SELECT id FROM events 
+            WHERE status IN ('COMPLETED', 'CANCELLED')
+        )
+    `);
+    
+    // Get count of deleted rows
+    const deletedCount = db.exec(`SELECT changes() as deleted`);
+    const count = deletedCount[0]?.values[0]?.[0] as number || 0;
+    
+        // Save to disk after cleanup
+        saveDatabase();
+    if (count > 0) {
+        console.log(`[Scheduler] Cleaned up ${count} reminder records for completed/cancelled events`);
+    }
+    
+    return count;
+}
 
 // Track which reminders have been sent to avoid duplicates
-// Key format: "eventId-ruleId" (e.g., "abc123-rule456")
+// Key format: "eventId-ruleId-userId" (e.g., "abc123-rule456-user789")
 const sentReminders: Set<string> = new Set();
 
 // Scheduler interval reference
@@ -53,6 +118,12 @@ export async function checkAndSendReminders(): Promise<{
     remindersSent: number;
     rulesEvaluated: number;
 }> {
+    // Reload database to get latest data from disk
+    await reloadDatabase();
+    
+    // Clean up reminders for completed events (runs every check)
+    await cleanupCompletedEventReminders();
+    
     const upcomingEvents = await eventRepository.getUpcomingEvents();
     const rules = await notificationRuleRepository.getEnabledRules();
     const now = new Date();
@@ -79,25 +150,75 @@ export async function checkAndSendReminders(): Promise<{
                 // Parse DSL rule into AST
                 const ast = parse(rule.rule_text);
                 
+                console.log(`[Scheduler] Evaluating rule "${rule.name}" against event "${event.title}":`);
+                console.log(`[Scheduler]   - Event start: ${event.start_datetime}`);
+                console.log(`[Scheduler]   - Hours until: ${Math.floor(hoursUntilEvent)}`);
+                console.log(`[Scheduler]   - Rule text: ${rule.rule_text}`);
+                
                 // Evaluate rule condition against event
                 const result = Interpreter.evaluateRule(ast, event, now);
                 
-                // If rule matched and we haven't sent this reminder yet
-                const reminderKey = `${event.id}-${rule.id}`;
-                if (result.shouldSend && !sentReminders.has(reminderKey)) {
-                    // Send email notification
-                    await notificationService.sendEventReminder(
-                        event,
-                        hoursUntilEvent
-                    );
+                console.log(`[Scheduler]   - Should send: ${result.shouldSend}, Reason: ${result.reason}`);
+                
+                // If rule matched, send to users who haven't received this reminder yet
+                if (result.shouldSend) {
+                    // Get all confirmed registrations for this event
+                    const registrations = await registrationRepository.getConfirmedRegistrations(event.id);
                     
-                    sentReminders.add(reminderKey);
-                    remindersSent++;
+                    if (registrations.length === 0) {
+                        console.log(
+                            `[Scheduler] ⊘ Rule "${rule.name}" matched for "${event.title}" ` +
+                            `but no users are registered yet (waiting for registrations)`
+                        );
+                        continue;
+                    }
                     
-                    console.log(
-                        `[Scheduler] ✓ Rule "${rule.name}" matched for "${event.title}" ` +
-                        `(${Math.floor(hoursUntilEvent)}h until) → Sent email`
-                    );
+                    let emailsSentForThisRule = 0;
+                    let skippedCount = 0;
+                    
+                    for (const reg of registrations) {
+                        // Check if we've already sent this reminder to this user (from database)
+                        const alreadySent = await wasReminderSent(event.id, rule.id, reg.user_id);
+                        
+                        if (!alreadySent) {
+                            // Send email to this specific user
+                            const user = await userRepository.getUserById(reg.user_id);
+                            if (user && user.email) {
+                                const emailHtml = formatEventReminderEmail(
+                                    event.title,
+                                    formatDateTime(event.start_datetime),
+                                    hoursUntilEvent <= 24 
+                                        ? `in ${Math.round(hoursUntilEvent)} hours`
+                                        : `in ${Math.round(hoursUntilEvent / 24)} days`
+                                );
+                                await sendEmail(
+                                    user.email,
+                                    `Reminder: ${event.title}`,
+                                    emailHtml
+                                );
+                                
+                                // Mark as sent in database
+                                await markReminderSent(event.id, rule.id, reg.user_id);
+                                emailsSentForThisRule++;
+                                remindersSent++;
+                            }
+                        } else {
+                            skippedCount++;
+                        }
+                    }
+                    
+                    if (emailsSentForThisRule > 0) {
+                        console.log(
+                            `[Scheduler] ✓ Rule "${rule.name}" matched for "${event.title}" ` +
+                            `(${Math.floor(hoursUntilEvent)}h until) → Sent ${emailsSentForThisRule} emails` +
+                            (skippedCount > 0 ? `, skipped ${skippedCount} (already notified)` : '')
+                        );
+                    } else if (skippedCount > 0) {
+                        console.log(
+                            `[Scheduler] ⊘ Rule "${rule.name}" matched for "${event.title}" ` +
+                            `but all ${skippedCount} registered users already received this reminder`
+                        );
+                    }
                 }
             } catch (error) {
                 console.error(

@@ -92,6 +92,19 @@ CREATE TABLE IF NOT EXISTS notification_rules (
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Sent Reminders table (tracks which reminders have been sent to prevent duplicates)
+CREATE TABLE IF NOT EXISTS sent_reminders (
+    id TEXT PRIMARY KEY,
+    event_id TEXT NOT NULL,
+    rule_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    sent_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+    FOREIGN KEY (rule_id) REFERENCES notification_rules(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(event_id, rule_id, user_id)  -- Each user gets each rule reminder once per event
+);
+
 -- Indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_events_organizer ON events(organizer_id);
 CREATE INDEX IF NOT EXISTS idx_events_venue ON events(venue_id);
@@ -104,4 +117,5 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
 CREATE INDEX IF NOT EXISTS idx_users_role_status ON users(role, status);
 CREATE INDEX IF NOT EXISTS idx_notification_rules_enabled ON notification_rules(enabled);
+CREATE INDEX IF NOT EXISTS idx_sent_reminders_lookup ON sent_reminders(event_id, rule_id, user_id);
 `;

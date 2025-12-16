@@ -147,14 +147,20 @@ export async function getUpcomingEvents(): Promise<Event[]> {
     const db = await getDatabase();
     const now = new Date().toISOString();
     
+    console.log(`[EventRepository] getUpcomingEvents - Current time: ${now}`);
+    
     const result = db.exec(
         `SELECT * FROM events 
          WHERE start_datetime > ?
          ORDER BY start_datetime ASC`,
         [now]
     );
+    
+    const events = getAllRows(result).map(mapRowToEvent);
+    console.log(`[EventRepository] Found ${events.length} upcoming events:`, 
+        events.map(e => ({ title: e.title, start: e.start_datetime, status: e.status })));
 
-    return getAllRows(result).map(mapRowToEvent);
+    return events;
 }
 
 /**

@@ -56,6 +56,20 @@ export function saveDatabase(): void {
 }
 
 /**
+ * Reloads the database from disk (useful for schedulers to get latest data)
+ * @returns void; effects: reloads database from file.
+ */
+export async function reloadDatabase(): Promise<void> {
+    if (db && fs.existsSync(DB_PATH)) {
+        const SQL = await initSqlJs();
+        const buffer = fs.readFileSync(DB_PATH);
+        const oldDb = db;
+        db = new SQL.Database(buffer);
+        oldDb.close();
+    }
+}
+
+/**
  * Closes the database connection after saving.
  * @returns void; effects: saves DB, closes connection, sets global db to null.
  */
