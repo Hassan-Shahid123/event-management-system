@@ -7,9 +7,7 @@
  * GRAMMAR (EBNF Notation):
  * ========================
  * 
- * Rule         ::= 'SEND' ChannelList 'WHEN' Expression
- * ChannelList  ::= Channel (',' Channel)*
- * Channel      ::= 'email' | 'sms' | 'push'
+ * Rule         ::= 'SEND' 'EMAIL' 'WHEN' Expression
  * Expression   ::= AndExpr ( 'OR' AndExpr )*
  * AndExpr      ::= Condition ( 'AND' Condition )*
  * Condition    ::= Comparison | '(' Expression ')'
@@ -28,22 +26,22 @@
  * ==============
  * 
  * 1. Simple reminder 24 hours before:
- *    SEND email WHEN hours_until = 24
+ *    SEND EMAIL WHEN hours_until = 24
  * 
- * 2. Multi-channel reminder 1 hour before:
- *    SEND email, sms WHEN hours_until = 1
+ * 2. Reminder 1 hour before:
+ *    SEND EMAIL WHEN hours_until = 1
  * 
  * 3. Conditional reminder for large events:
- *    SEND email, push WHEN hours_until = 36 AND capacity > 100
+ *    SEND EMAIL WHEN hours_until = 36 AND capacity > 100
  * 
  * 4. Multiple time reminders:
- *    SEND sms WHEN (hours_until = 24 OR hours_until = 1) AND status = UPCOMING
+ *    SEND EMAIL WHEN (hours_until = 24 OR hours_until = 1) AND status = UPCOMING
  * 
  * 5. Early reminder for paid events:
- *    SEND email WHEN days_until = 7 AND price > 0
+ *    SEND EMAIL WHEN days_until = 7 AND price > 0
  * 
  * 6. Last minute reminder:
- *    SEND push WHEN minutes_until = 30 AND available_seats > 0
+ *    SEND EMAIL WHEN minutes_until = 30 AND available_seats > 0
  * 
  * LANGUAGE DESIGN DECISIONS:
  * ==========================

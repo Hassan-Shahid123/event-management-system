@@ -8,7 +8,9 @@
 
 import * as notificationRepository from '../repositories/notificationRepository';
 import * as registrationRepository from '../repositories/registrationRepository';
+import * as userRepository from '../repositories/userRepository';
 import { Notification, Event } from '../types';
+import { sendEmail, formatEventReminderEmail } from './emailService';
 
 // ============================================================================
 // REGISTRATION NOTIFICATIONS
@@ -157,6 +159,20 @@ export async function sendEventReminder(
             `Reminder: "${event.title}" is ${timeText}. Don't forget to attend!`,
             event.id
         );
+
+        const user = await userRepository.getUserById(reg.user_id);
+        if (user && user.email) {
+            const emailHtml = formatEventReminderEmail(
+                event.title,
+                formatDateTime(event.start_datetime),
+                timeText
+            );
+            await sendEmail(
+                user.email,
+                `Event Reminder: ${event.title}`,
+                emailHtml
+            );
+        }
     }
 }
 
