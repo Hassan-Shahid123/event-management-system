@@ -250,17 +250,17 @@ export const registrationsAPI = {
 export const notificationRulesAPI = {
   getAll: async (): Promise<any[]> => {
     const response = await api.get('/notification-rules');
-    return response.data;
+    return response.data.data || response.data;
   },
 
   create: async (data: any): Promise<any> => {
     const response = await api.post('/notification-rules', data);
-    return response.data;
+    return response.data.data || response.data;
   },
 
   update: async (id: string, data: any): Promise<any> => {
     const response = await api.put(`/notification-rules/${id}`, data);
-    return response.data;
+    return response.data.data || response.data;
   },
 
   delete: async (id: string): Promise<void> => {
