@@ -58,6 +58,11 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
     throw new Error('Invalid user role');
   }
 
+  // Disallow public registration of ADMIN accounts — must be provisioned directly in DB
+  if (input.role === 'ADMIN') {
+    throw new Error('Admin registration through public signup is disabled. Admin accounts must be created by an existing administrator or added directly to the database.');
+  }
+
   // Check if email already exists
   const existingUser = await userRepository.getUserByEmail(input.email);
   if (existingUser) {
