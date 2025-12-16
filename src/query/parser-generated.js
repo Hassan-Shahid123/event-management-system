@@ -235,23 +235,23 @@ function peg$parse(input, options) {
   const peg$e31 = peg$anyExpectation();
 
   function peg$f0(channels, condition) {
-    return createRuleNode(channels, condition);
+      return createRuleNode(channels, condition);
   }
   function peg$f1(first, rest) {
-    return [first, ...rest.map(r => r[3])];
+      return [first, ...rest.map(r => r[3])];
   }
   function peg$f2() {    return 'email';  }
   function peg$f3() {    return 'sms';  }
   function peg$f4() {    return 'push';  }
   function peg$f5(left, right) {
-    return createBinaryNode('OR', left, right);
+      return createBinaryNode('OR', left, right);
   }
   function peg$f6(left, right) {
-    return createBinaryNode('AND', left, right);
+      return createBinaryNode('AND', left, right);
   }
   function peg$f7(expr) {    return expr;  }
   function peg$f8(field, op, value) {
-    return createConditionNode(field, op, value);
+      return createConditionNode(field, op, value);
   }
   function peg$f9() {    return '>=';  }
   function peg$f10() {    return '<=';  }
