@@ -38,9 +38,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// ============================================================================
-// AUTHENTICATION API
-// ============================================================================
 
 export const authAPI = {
   login: async (data: LoginRequest): Promise<LoginResponse> => {
@@ -62,9 +59,6 @@ export const authAPI = {
   },
 };
 
-// ============================================================================
-// USERS API
-// ============================================================================
 
 export const usersAPI = {
   getAll: async (): Promise<User[]> => {
@@ -132,9 +126,7 @@ export const usersAPI = {
   },
 };
 
-// ============================================================================
-// EVENTS API
-// ============================================================================
+
 
 export const eventsAPI = {
   getAll: async (): Promise<Event[]> => {
@@ -172,9 +164,7 @@ export const eventsAPI = {
   },
 };
 
-// ============================================================================
-// VENUES API
-// ============================================================================
+
 
 export const venuesAPI = {
   getAll: async (): Promise<Venue[]> => {
@@ -209,9 +199,6 @@ export const venuesAPI = {
   },
 };
 
-// ============================================================================
-// REGISTRATIONS API
-// ============================================================================
 
 export const registrationsAPI = {
   register: async (eventId: string, userId: string): Promise<EventRegistration> => {
@@ -255,9 +242,7 @@ export const registrationsAPI = {
   },
 };
 
-// ============================================================================
-// NOTIFICATION RULES API
-// ============================================================================
+
 
 export const notificationRulesAPI = {
   getAll: async (): Promise<any[]> => {

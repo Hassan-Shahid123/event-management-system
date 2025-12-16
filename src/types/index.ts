@@ -3,10 +3,6 @@
  * Matches backend API types (without sensitive data like password_hash)
  */
 
-// ============================================================================
-// ENUMS & STATUS TYPES
-// ============================================================================
-
 export type Role = 'STUDENT' | 'ORGANIZER' | 'ADMIN';
 
 export type UserStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -35,10 +31,6 @@ export type NotificationType =
     | 'EVENT_UPDATED'
     | 'EVENT_REMINDER'
     | 'UNREGISTERED';
-
-// ============================================================================
-// INTERFACES
-// ============================================================================
 
 export interface User {
     id: string;
@@ -99,9 +91,6 @@ export interface Notification {
     created_at: string;
 }
 
-// ============================================================================
-// API REQUEST/RESPONSE TYPES
-// ============================================================================
 
 export interface LoginRequest {
     email: string;
