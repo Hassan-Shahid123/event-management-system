@@ -255,4 +255,38 @@ export const registrationsAPI = {
   },
 };
 
+// ============================================================================
+// NOTIFICATION RULES API
+// ============================================================================
+
+export const notificationRulesAPI = {
+  getAll: async (): Promise<any[]> => {
+    const response = await api.get('/notification-rules');
+    return response.data.data || response.data;
+  },
+
+  create: async (data: any): Promise<any> => {
+    const response = await api.post('/notification-rules', data);
+    return response.data.data || response.data;
+  },
+
+  update: async (id: string, data: any): Promise<any> => {
+    const response = await api.put(`/notification-rules/${id}`, data);
+    return response.data.data || response.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/notification-rules/${id}`);
+  },
+
+  toggle: async (id: string, enabled: boolean): Promise<void> => {
+    await api.patch(`/notification-rules/${id}/toggle`, { enabled });
+  },
+
+  validate: async (ruleText: string): Promise<{ valid: boolean; error?: string }> => {
+    const response = await api.post('/notification-rules/validate', { rule_text: ruleText });
+    return response.data;
+  },
+};
+
 export default api;
