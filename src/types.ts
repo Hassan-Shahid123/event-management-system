@@ -1,16 +1,4 @@
 /**
- * CampusConnect Type Definitions
- * 
- * This module defines all core types used throughout the system.
- * These interfaces represent the shape of data from SQLite database.
- */
-
-// ============================================================================
-// ENUMS & STATUS TYPES
-// ============================================================================
-
-
-/**
  * Role represents the privilege level of a user in the system.
  * 
  * Ordering of privileges: STUDENT < ORGANIZER < ADMIN
@@ -69,10 +57,6 @@ export type NotificationType =
     | 'EVENT_UPDATED'
     | 'EVENT_REMINDER'
     | 'UNREGISTERED';
-
-// ============================================================================
-// DATABASE MODEL INTERFACES
-// ============================================================================
 
 /**
  * User represents a user in the system (maps to users table in SQLite).
@@ -170,4 +154,3 @@ export interface Notification {
     is_read: boolean;
     created_at: string;
 }
-

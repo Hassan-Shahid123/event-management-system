@@ -1,29 +1,3 @@
-/**
- * Notification Rule Language - Abstract Syntax Tree (AST)
- * 
- * Defines recursive data types for representing parsed notification rules.
- * The AST represents: SEND <channels> WHEN <conditions>
- * 
- * SOFTWARE CONSTRUCTION CONCEPTS (MIT 6.102):
- * ==========================================
- * - Recursive data types (Expression contains Expression)
- * - Abstract data types with operations
- * - Composite pattern for tree structure
- * - Immutability (readonly fields)
- * - Type safety with discriminated unions
- * 
- * Example AST for "SEND email, sms WHEN hours_until = 24 AND status = UPCOMING":
- * {
- *   kind: 'RuleNode',
- *   channels: ['email', 'sms'],
- *   condition: {
- *     kind: 'BinaryNode',
- *     operator: 'AND',
- *     left: { kind: 'ConditionNode', field: 'hours_until', operator: '=', value: 24 },
- *     right: { kind: 'ConditionNode', field: 'status', operator: '=', value: 'UPCOMING' }
- *   }
- * }
- */
 
 /**
  * Base interface for all AST nodes
@@ -89,12 +63,6 @@ export interface ConditionNode extends ASTNode {
   readonly operator: string; // '=', '!=', '>', '<', '>=', '<='
   readonly value: string | number;
 }
-
-/**
- * Factory Functions for AST Node Creation
- * ========================================
- * Ensure proper initialization and type safety
- */
 
 /**
  * Creates a rule node with channels and condition

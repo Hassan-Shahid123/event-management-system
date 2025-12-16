@@ -3,20 +3,6 @@
  * 
  * Evaluates notification rule AST against events to determine if notifications should be sent.
  * Implements visitor pattern for AST traversal and condition evaluation.
- * 
- * SOFTWARE CONSTRUCTION CONCEPTS (MIT 6.102):
- * ==========================================
- * - Interpreter pattern (code as data - rules are data, not hardcoded logic)
- * - Visitor pattern for tree traversal
- * - Recursive evaluation on recursive data types
- * - Type-safe value comparisons
- * - Separation of parsing (grammar) and evaluation (this file)
- * 
- * Example:
- * Rule: "SEND email WHEN hours_until = 24 AND status = UPCOMING"
- * Event: { id: 1, start_datetime: "2024-12-16T10:00:00Z", status: "UPCOMING" }
- * Current time: 2024-12-15T10:00:00Z
- * Result: { shouldSend: true, channels: ['email'], reason: 'Rule matched' }
  */
 
 import { RuleNode, Expression, BinaryNode, ConditionNode } from './ast';

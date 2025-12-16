@@ -1,10 +1,6 @@
 /**
  * REST API Server
- * 
- * Main Express application setup with route mounting.
  */
-
-// Load environment variables FIRST
 import dotenv from 'dotenv';
 dotenv.config();
 

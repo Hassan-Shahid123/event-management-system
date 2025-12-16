@@ -4,13 +4,6 @@
  * Domain-specific language for configuring automated event notifications.
  * Admins define rules without coding: when to send, which channel, what conditions.
  * 
- * SOFTWARE CONSTRUCTION CONCEPTS (MIT 6.102):
- * - Grammar as specification (declarative design)
- * - Parser generators (Peggy compiles grammar → parser)
- * - Little languages (domain-specific, not general-purpose)
- * - Separation of syntax (this file) from semantics (interpreter.ts)
- * - Operator precedence through grammar structure (AND > OR)
- * 
  * EXAMPLE RULES:
  * SEND email WHEN hours_until = 24
  * SEND sms WHEN hours_until = 1 AND status = UPCOMING
