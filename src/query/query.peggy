@@ -22,22 +22,11 @@
   const { createRuleNode, createConditionNode, createBinaryNode } = require('./ast');
 }}
 
-// Entry point: SEND <channels> WHEN <conditions>
+// Entry point: SEND EMAIL WHEN <conditions>
 Rule
-  = _ "SEND"i _ channels:ChannelList _ "WHEN"i _ condition:Expression _ EOF {
-      return createRuleNode(channels, condition);
+  = _ "SEND"i _ "EMAIL"i _ "WHEN"i _ condition:Expression _ EOF {
+      return createRuleNode(condition);
     }
-
-// Comma-separated channels: email, sms, push
-ChannelList
-  = first:Channel rest:(_ "," _ Channel)* {
-      return [first, ...rest.map(r => r[3])];
-    }
-
-Channel
-  = "email"i { return 'email'; }
-  / "sms"i { return 'sms'; }
-  / "push"i { return 'push'; }
 
 // Boolean expressions with OR (lowest precedence)
 Expression

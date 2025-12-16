@@ -54,7 +54,6 @@ export interface EvaluationContext {
  */
 export interface RuleEvaluationResult {
   shouldSend: boolean;
-  channels: string[];
   reason: string;
   ruleName?: string;
 }
@@ -95,14 +94,12 @@ export class Interpreter {
     if (conditionMatches) {
       return {
         shouldSend: true,
-        channels: rule.channels,
         reason: 'Rule conditions matched'
       };
     }
 
     return {
       shouldSend: false,
-      channels: [],
       reason: 'Rule conditions did not match'
     };
   }
@@ -295,18 +292,6 @@ export class Interpreter {
    * @returns Validation result with error message if invalid
    */
   public static validateRule(rule: RuleNode): { valid: boolean; error?: string } {
-    // Check channels
-    if (!rule.channels || rule.channels.length === 0) {
-      return { valid: false, error: 'Rule must have at least one channel' };
-    }
-
-    const validChannels = ['email', 'sms', 'push'];
-    for (const channel of rule.channels) {
-      if (!validChannels.includes(channel)) {
-        return { valid: false, error: `Invalid channel: ${channel}` };
-      }
-    }
-
     // Check condition has valid fields
     const validationError = this.validateExpression(rule.condition);
     if (validationError) {

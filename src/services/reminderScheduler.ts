@@ -85,10 +85,9 @@ export async function checkAndSendReminders(): Promise<{
                 // If rule matched and we haven't sent this reminder yet
                 const reminderKey = `${event.id}-${rule.id}`;
                 if (result.shouldSend && !sentReminders.has(reminderKey)) {
-                    // Send notification on all specified channels
-                    await notificationService.sendEventReminderWithChannels(
+                    // Send email notification
+                    await notificationService.sendEventReminder(
                         event,
-                        result.channels,
                         hoursUntilEvent
                     );
                     
@@ -97,7 +96,7 @@ export async function checkAndSendReminders(): Promise<{
                     
                     console.log(
                         `[Scheduler] ✓ Rule "${rule.name}" matched for "${event.title}" ` +
-                        `(${Math.floor(hoursUntilEvent)}h until) → Sent via ${result.channels.join(', ')}`
+                        `(${Math.floor(hoursUntilEvent)}h until) → Sent email`
                     );
                 }
             } catch (error) {

@@ -45,14 +45,12 @@ export type Expression = BinaryNode | ConditionNode;
 /**
  * RuleNode: Top-level notification rule
  * 
- * Represents: SEND email, sms WHEN condition
+ * Represents: SEND EMAIL WHEN condition
  * 
- * Invariant: channels is non-empty array
  * Invariant: condition is a valid expression
  */
 export interface RuleNode extends ASTNode {
   readonly kind: 'RuleNode';
-  readonly channels: string[]; // ['email', 'sms', 'push']
   readonly condition: Expression;
 }
 
@@ -109,17 +107,9 @@ export interface ConditionNode extends ASTNode {
  * Precondition: condition is a valid expression
  * Postcondition: Returns immutable rule node
  */
-export function createRuleNode(
-  channels: string[],
-  condition: Expression
-): RuleNode {
-  if (channels.length === 0) {
-    throw new Error('Rule must have at least one channel');
-  }
-  
+export function createRuleNode(condition: Expression): RuleNode {
   return {
     kind: 'RuleNode',
-    channels,
     condition
   };
 }
@@ -202,7 +192,7 @@ export function printAST(node: RuleNode | Expression, indent: number = 0): strin
   const spaces = '  '.repeat(indent);
   
   if (node.kind === 'RuleNode') {
-    return `${spaces}SEND [${node.channels.join(', ')}] WHEN\n` +
+    return `${spaces}SEND EMAIL WHEN\n` +
            `${printAST(node.condition, indent + 1)}`;
   }
   
@@ -231,7 +221,7 @@ export function printAST(node: RuleNode | Expression, indent: number = 0): strin
  */
 export function validateAST(node: RuleNode | Expression): boolean {
   if (node.kind === 'RuleNode') {
-    return node.channels.length > 0 && validateAST(node.condition);
+    return validateAST(node.condition);
   }
   
   switch (node.kind) {
