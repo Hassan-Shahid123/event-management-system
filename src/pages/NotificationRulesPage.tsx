@@ -128,8 +128,12 @@ const NotificationRulesPage: React.FC = () => {
 
   return (
     <div className="notification-rules-page">
-      <div className="page-header">
+      <div className="rules-header">
         <h1>Notification Rules</h1>
+        <p className="subtitle">Automate event notifications with custom rules</p>
+      </div>
+
+      <div className="rule-actions">
         <button className="btn-primary" onClick={() => setShowForm(true)}>
           + New Rule
         </button>
@@ -226,8 +230,8 @@ const NotificationRulesPage: React.FC = () => {
                     />
                     <span className="slider"></span>
                   </label>
-                  <button className="btn-icon" onClick={() => handleEdit(rule)}>✏️</button>
-                  <button className="btn-icon" onClick={() => handleDelete(rule.id)}>🗑️</button>
+                  <button className="btn-edit" onClick={() => handleEdit(rule)}>Edit</button>
+                  <button className="btn-delete" onClick={() => handleDelete(rule.id)}>Delete</button>
                 </div>
               </div>
               
