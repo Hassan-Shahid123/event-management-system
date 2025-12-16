@@ -22,11 +22,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
-    const savedUser = localStorage.getItem('user');
+    const savedUser = sessionStorage.getItem('user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
   const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem('token');
+    return sessionStorage.getItem('token');
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -34,8 +34,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const response = await authAPI.login(data);
     setToken(response.token);
     setUser(response.user);
-    localStorage.setItem('token', response.token);
-    localStorage.setItem('user', JSON.stringify(response.user));
+    sessionStorage.setItem('token', response.token);
+    sessionStorage.setItem('user', JSON.stringify(response.user));
   };
 
   const register = async (data: RegisterRequest) => {
@@ -45,8 +45,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (response.user.status === 'APPROVED') {
       setToken(response.token);
       setUser(response.user);
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      sessionStorage.setItem('token', response.token);
+      sessionStorage.setItem('user', JSON.stringify(response.user));
     }
     // For pending users, don't save auth state - they need admin approval first
   };
@@ -54,8 +54,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
   };
 
   return (
