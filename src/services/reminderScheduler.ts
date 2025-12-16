@@ -40,35 +40,57 @@ function formatDateTime(isoString: string): string {
 }
 
 /**
- * Check if reminder was already sent (from database)
+ * Get all users who already received this reminder (optimized - single query)
  */
-async function wasReminderSent(eventId: string, ruleId: string, userId: string): Promise<boolean> {
+async function getSentReminderUsers(eventId: string, ruleId: string): Promise<Set<string>> {
     const db = await getDatabase();
     const result = db.exec(
-        `SELECT 1 FROM sent_reminders WHERE event_id = ? AND rule_id = ? AND user_id = ?`,
-        [eventId, ruleId, userId]
+        `SELECT user_id FROM sent_reminders WHERE event_id = ? AND rule_id = ?`,
+        [eventId, ruleId]
     );
-    return result.length > 0 && result[0].values.length > 0;
+    
+    const userIds = new Set<string>();
+    if (result.length > 0 && result[0].values.length > 0) {
+        for (const row of result[0].values) {
+            userIds.add(row[0] as string);
+        }
+    }
+    return userIds;
 }
 
 /**
- * Mark reminder as sent (in database)
+ * Batch mark multiple reminders as sent (optimized)
  */
-async function markReminderSent(eventId: string, ruleId: string, userId: string): Promise<void> {
+async function batchMarkRemindersSent(eventId: string, ruleId: string, userIds: string[]): Promise<void> {
+    if (userIds.length === 0) return;
+    
     const db = await getDatabase();
-    db.run(
-        `INSERT OR IGNORE INTO sent_reminders (id, event_id, rule_id, user_id) VALUES (?, ?, ?, ?)`,
-        [uuidv4(), eventId, ruleId, userId]
-    );
-    // Save to disk immediately to persist across reloads
+    for (const userId of userIds) {
+        db.run(
+            `INSERT OR IGNORE INTO sent_reminders (id, event_id, rule_id, user_id) VALUES (?, ?, ?, ?)`,
+            [uuidv4(), eventId, ruleId, userId]
+        );
+    }
+    // Save to disk once after all inserts
     saveDatabase();
 }
 
+// Track when we last ran cleanup
+let lastCleanupTime = Date.now();
+const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // Once per day
+
 /**
  * Clean up sent_reminders for completed/cancelled events
- * Runs automatically to prevent database bloat
+ * Runs once per day to prevent database bloat
  */
 async function cleanupCompletedEventReminders(): Promise<number> {
+    const now = Date.now();
+    if (now - lastCleanupTime < CLEANUP_INTERVAL_MS) {
+        return 0; // Skip if we ran cleanup recently
+    }
+    
+    lastCleanupTime = now;
+    
     const db = await getDatabase();
     const result = db.exec(`
         DELETE FROM sent_reminders 
@@ -82,24 +104,20 @@ async function cleanupCompletedEventReminders(): Promise<number> {
     const deletedCount = db.exec(`SELECT changes() as deleted`);
     const count = deletedCount[0]?.values[0]?.[0] as number || 0;
     
+    if (count > 0) {
         // Save to disk after cleanup
         saveDatabase();
-    if (count > 0) {
         console.log(`[Scheduler] Cleaned up ${count} reminder records for completed/cancelled events`);
     }
     
     return count;
 }
 
-// Track which reminders have been sent to avoid duplicates
-// Key format: "eventId-ruleId-userId" (e.g., "abc123-rule456-user789")
-const sentReminders: Set<string> = new Set();
-
 // Scheduler interval reference
 let schedulerInterval: ReturnType<typeof setInterval> | null = null;
 
 // Scheduler configuration
-const SCHEDULER_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+const SCHEDULER_INTERVAL_MS = 60 * 1000; // 60 seconds for testing
 
 /**
  * Scans upcoming events and evaluates DSL rules to send reminders.
@@ -121,7 +139,7 @@ export async function checkAndSendReminders(): Promise<{
     // Reload database to get latest data from disk
     await reloadDatabase();
     
-    // Clean up reminders for completed events (runs every check)
+    // Clean up reminders for completed events (runs daily)
     await cleanupCompletedEventReminders();
     
     const upcomingEvents = await eventRepository.getUpcomingEvents();
@@ -173,45 +191,97 @@ export async function checkAndSendReminders(): Promise<{
                         continue;
                     }
                     
-                    let emailsSentForThisRule = 0;
+                    // Optimized: Get all sent reminders in one query instead of 100 separate queries
+                    const alreadySentUsers = await getSentReminderUsers(event.id, rule.id);
+                    
+                    // Prepare batch of emails to send
+                    const emailTasks: Array<{
+                        user: any;
+                        userId: string;
+                        email: string;
+                        promise: Promise<void>;
+                    }> = [];
+                    
                     let skippedCount = 0;
                     
                     for (const reg of registrations) {
-                        // Check if we've already sent this reminder to this user (from database)
-                        const alreadySent = await wasReminderSent(event.id, rule.id, reg.user_id);
-                        
-                        if (!alreadySent) {
-                            // Send email to this specific user
-                            const user = await userRepository.getUserById(reg.user_id);
-                            if (user && user.email) {
-                                const emailHtml = formatEventReminderEmail(
-                                    event.title,
-                                    formatDateTime(event.start_datetime),
-                                    hoursUntilEvent <= 24 
-                                        ? `in ${Math.round(hoursUntilEvent)} hours`
-                                        : `in ${Math.round(hoursUntilEvent / 24)} days`
-                                );
-                                await sendEmail(
-                                    user.email,
-                                    `Reminder: ${event.title}`,
-                                    emailHtml
-                                );
-                                
-                                // Mark as sent in database
-                                await markReminderSent(event.id, rule.id, reg.user_id);
-                                emailsSentForThisRule++;
-                                remindersSent++;
-                            }
-                        } else {
+                        // Check if already sent (from Set - O(1) lookup)
+                        if (alreadySentUsers.has(reg.user_id)) {
                             skippedCount++;
+                            continue;
+                        }
+                        
+                        const user = await userRepository.getUserById(reg.user_id);
+                        if (user && user.email) {
+                            const emailHtml = formatEventReminderEmail(
+                                event.title,
+                                formatDateTime(event.start_datetime),
+                                hoursUntilEvent <= 24 
+                                    ? `in ${Math.round(hoursUntilEvent)} hours`
+                                    : `in ${Math.round(hoursUntilEvent / 24)} days`
+                            );
+                            
+                            // Create email promise but don't await yet (parallel sending)
+                            const emailPromise = sendEmail(
+                                user.email,
+                                `Reminder: ${event.title}`,
+                                emailHtml
+                            );
+                            
+                            emailTasks.push({
+                                user,
+                                userId: reg.user_id,
+                                email: user.email,
+                                promise: emailPromise
+                            });
                         }
                     }
                     
-                    if (emailsSentForThisRule > 0) {
+                    if (emailTasks.length > 0) {
+                        console.log(
+                            `[Scheduler] 📧 Sending ${emailTasks.length} emails in parallel for "${event.title}"...`
+                        );
+                        
+                        // Send all emails in parallel with error handling
+                        const results = await Promise.allSettled(
+                            emailTasks.map(task => task.promise)
+                        );
+                        
+                        // Process results and collect successful sends
+                        const successfulUserIds: string[] = [];
+                        let successCount = 0;
+                        let failCount = 0;
+                        
+                        for (let i = 0; i < results.length; i++) {
+                            const result = results[i];
+                            const task = emailTasks[i];
+                            
+                            if (result.status === 'fulfilled') {
+                                // Email sent successfully
+                                successfulUserIds.push(task.userId);
+                                successCount++;
+                                remindersSent++;
+                            } else {
+                                // Email failed - log error but continue
+                                console.error(
+                                    `[Scheduler] ✗ Failed to send email to ${task.email}:`,
+                                    result.reason
+                                );
+                                failCount++;
+                            }
+                        }
+                        
+                        // Batch mark all successful sends in database (single disk write)
+                        if (successfulUserIds.length > 0) {
+                            await batchMarkRemindersSent(event.id, rule.id, successfulUserIds);
+                        }
+                        
                         console.log(
                             `[Scheduler] ✓ Rule "${rule.name}" matched for "${event.title}" ` +
-                            `(${Math.floor(hoursUntilEvent)}h until) → Sent ${emailsSentForThisRule} emails` +
-                            (skippedCount > 0 ? `, skipped ${skippedCount} (already notified)` : '')
+                            `(${Math.floor(hoursUntilEvent)}h until) → ` +
+                            `Sent ${successCount} emails` +
+                            (failCount > 0 ? `, ${failCount} failed` : '') +
+                            (skippedCount > 0 ? `, ${skippedCount} skipped (already sent)` : '')
                         );
                     } else if (skippedCount > 0) {
                         console.log(
@@ -239,20 +309,20 @@ export async function checkAndSendReminders(): Promise<{
 /**
  * Starts periodic DSL-driven reminder checks.
  * 
- * @param intervalMs optional interval in milliseconds (default 15 minutes).
+ * @param intervalMs optional interval in milliseconds (default 60 seconds).
  * 
  * Loads rules from database on each check, so admins can add/modify rules
  * without restarting the server.
  */
 export function startScheduler(intervalMs: number = SCHEDULER_INTERVAL_MS): void {
     if (schedulerInterval) {
-        console.log('[Scheduler] Already running');
+        console.log('[Scheduler] Reminder scheduler is already running');
         return;
     }
 
-    console.log(`[Scheduler] Starting DSL-driven reminder scheduler (interval: ${intervalMs / 60000} minutes)...`);
+    console.log(`[Scheduler] Starting reminder scheduler (interval: ${intervalMs}ms)`);
 
-    // Run immediately on start
+    // Run initial check immediately
     checkAndSendReminders()
         .then(result => {
             console.log(
@@ -294,21 +364,6 @@ export function stopScheduler(): void {
  */
 export function isSchedulerRunning(): boolean {
     return schedulerInterval !== null;
-}
-
-/**
- * Clears the sent-reminders cache (useful for tests or resets).
- */
-export function clearReminderCache(): void {
-    sentReminders.clear();
-    console.log('[Scheduler] Reminder cache cleared');
-}
-
-/**
- * Returns the count of reminder keys tracked in memory.
- */
-export function getSentRemindersCount(): number {
-    return sentReminders.size;
 }
 
 /**
