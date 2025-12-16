@@ -17,6 +17,7 @@ import MyRegistrationsPage from './pages/MyRegistrationsPage';
 import VenuesPage from './pages/VenuesPage';
 import OrganizerRequestsPage from './pages/OrganizerRequestsPage';
 import UsersPage from './pages/UsersPage';
+import NotificationRulesPage from './pages/NotificationRulesPage';
 import './App.css';
 
 function App() {
@@ -94,6 +95,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <OrganizerRequestsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/notification-rules"
+                element={
+                  <ProtectedRoute>
+                    <NotificationRulesPage />
                   </ProtectedRoute>
                 }
               />
