@@ -101,10 +101,14 @@ const EventDetailsPage: React.FC = () => {
 
     try {
       setActionLoading(true);
-      await registrationsAPI.register(id, user.id);
+      const result = await registrationsAPI.register(id, user.id);
       setIsRegistered(true);
       await loadEventDetails(); // Refresh stats
-      notification.success('Successfully registered for event!');
+      if (result.status === 'CONFIRMED') {
+        notification.success('Successfully registered for event!');
+      } else {
+        notification.info('Registration received — you are waitlisted.');
+      }
     } catch (err: any) {
       console.error('Registration error:', err);
       notification.error(err.response?.data?.error || 'Registration failed');

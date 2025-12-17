@@ -201,8 +201,14 @@ export const venuesAPI = {
 
 
 export const registrationsAPI = {
-  register: async (eventId: string, userId: string): Promise<EventRegistration> => {
-    const response = await api.post<EventRegistration>('/registrations', {
+  register: async (
+    eventId: string,
+    userId: string
+  ): Promise<{ registration: EventRegistration; status: 'CONFIRMED' | 'WAITLISTED' }> => {
+    const response = await api.post<{
+      registration: EventRegistration;
+      status: 'CONFIRMED' | 'WAITLISTED';
+    }>('/registrations', {
       eventId,
       userId,
     });
