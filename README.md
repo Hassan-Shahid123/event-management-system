@@ -106,9 +106,12 @@ npm install
 npm run dev
 ```
 
-The Vite development server normally runs at `http://localhost:5173`. The
-frontend is configured to call the backend at `http://localhost:3000/api`, so
-start the backend first.
+The frontend's `vite.config.ts` does not set a custom port, so Vite uses its
+default development port, `http://localhost:5173`, unless you override it.
+The frontend is configured to call the backend at
+`http://localhost:3000/api`, so start the backend first. See the
+[frontend branch README](https://github.com/Hassan-Shahid123/event-management-system/blob/frontend/README.md)
+for frontend-specific setup and commands.
 
 To work with both applications, keep two directories:
 
