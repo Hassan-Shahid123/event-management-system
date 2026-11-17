@@ -4,6 +4,28 @@ CampusConnect is a full-stack event management system for campus communities.
 Administrators and organizers can manage events and venues, while students can
 discover events and register for them.
 
+## Technology and implementation
+
+The backend is written in **TypeScript** and runs on Node.js with Express.
+TypeScript provides typed models, service interfaces, route handlers, and
+database access. The frontend is a separate React/Vite TypeScript application
+on the `frontend` branch.
+
+The backend also includes a small notification-rule language. Its formal
+grammar is defined in [`src/query/grammar.ts`](src/query/grammar.ts) and the
+parser grammar is implemented in
+[`src/query/query.peggy`](src/query/query.peggy). Rules such as
+`SEND EMAIL WHEN hours_until = 24 AND status = UPCOMING` are parsed into an
+abstract syntax tree and evaluated by the notification services. This lets
+administrators configure notification conditions without changing application
+code.
+
+Regular expressions are used for focused input validation. For example,
+[`src/utils/validation.ts`](src/utils/validation.ts) uses a regular expression
+to validate the basic structure of email addresses before account operations
+continue. The rule grammar also uses pattern definitions for numeric and
+alphanumeric tokens while parsing notification rules.
+
 The repository is organized into two branches:
 
 - `main` contains the backend API.
